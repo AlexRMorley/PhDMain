@@ -1,0 +1,328 @@
+#LyX 2.4 created this file. For more info see https://www.lyx.org/
+\lyxformat 620
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass book
+\begin_preamble
+%\usepackage[helvetica]{quotchap}
+%%\usepackage[lmodern]{quotchap}
+
+%%%%
+%\usepackage{graphicx}
+%\usepackage{subfigure}
+%%\usepackage{caption}
+
+%\usepackage{subcaption}
+
+\usepackage{fancyhdr}
+\fancyhf{}
+\cfoot{\thepage}
+\end_preamble
+\use_default_options true
+\begin_modules
+theorems-ams-bytype
+theorems-ams-extended-bytype
+theorems-chap-bytype
+customHeadersFooters
+\end_modules
+\maintain_unincluded_children no
+\language british
+\language_package auto
+\inputencoding auto-legacy
+\fontencoding auto
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures true
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command bibtex
+\index_command default
+\float_placement tph
+\paperfontsize 12
+\spacing onehalf
+\use_hyperref true
+\pdf_bookmarks true
+\pdf_bookmarksnumbered false
+\pdf_bookmarksopen false
+\pdf_bookmarksopenlevel 1
+\pdf_breaklinks false
+\pdf_pdfborder true
+\pdf_colorlinks false
+\pdf_backref false
+\pdf_pdfusetitle true
+\papersize a4
+\use_geometry true
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine natbib
+\cite_engine_type authoryear
+\biblio_style plainnat
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\use_formatted_ref 0
+\use_minted 0
+\use_lineno 0
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 4cm
+\topmargin 3cm
+\rightmargin 2cm
+\bottommargin 2cm
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style british
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle fancy
+\tablestyle default
+\tracking_changes false
+\output_changes false
+\change_bars false
+\postpone_fragile_content false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
+\end_header
+
+\begin_body
+
+\begin_layout Chapter
+
+\shape smallcaps
+Introduction
+\end_layout
+
+\begin_layout Left Header
+
+\shape smallcaps
+Introduction
+\end_layout
+
+\begin_layout Section
+Background
+\end_layout
+
+\begin_layout Standard
+With the modern robotic fleets that are deployed in search and rescue (SAR) missions,
+ the decision making and path planning coordination does not realistically represent the ground truth of open world environments.
+ Current coordination strategies fail to account for the diverse locomotion capabilities required to navigate dynamic and unpredictable terrains,
+ such as those encountered during natural disasters (e.g.,
+ flooding,
+ torrential rain,
+ or urban-forest interfaces).
+ Robotic engineers would need to employ a fleet that incorporates all four robotic locomotion types to surpass these locomotive limitations [].
+ These locomotion types include;
+ Legged robots,
+ Aerial robots,
+ Nautical robots,
+ and Driven Robots.
+ Each type of robot should not only be able to inspect the mission site but should also be able to perform actions in the environment such as delivering a care package or providing immediate aid to individuals in need.
+ 
+\end_layout
+
+\begin_layout Standard
+Despite the potential of such diverse fleets,
+ the literature does not adequately address scenarios requiring the coordinated deployment of these locomotion types.
+ Hence,
+ the traversability capability of each agent as well as the assessments of risks that each agent carries when navigating terrain should be confronted.
+ This research seeks to bridge these gaps by investigating a novel framework for coordinating heterogeneous robotic fleets,
+ to ensure operational efficacy in realistic,
+ open-world environments.
+\end_layout
+
+\begin_layout Standard
+This work will investigate the utilisation of a centralised mission planning algorithm derived from a traversability risk assessment framework.
+ The framework is a probabilistic risk model estimating the sum of all traversability risks in a robotic agents environment that would damage the robot or impede the mission.
+ The algorithm will coordinate a heterogeneous multi-robotic fleet deployment containing differing locomotion types.
+ Therefore,
+ a lower traversability risk would mean a more suitable terrain for a specified locomotion type.
+ The fleet coordination and agent distribution will be based on suitable terrain for each locomotion type,
+ encouraging faster search times for survivors and being capable of providing immediate relief.
+ Whilst considering power management for navigation.
+ Ensuring post-calamity environments are traversable and physical aid can be distributed to survivors promptly,
+ to prolong their chances of survival.
+\end_layout
+
+\begin_layout Standard
+There has been extensive research with cooperative robotics in SAR operations,
+ where a heterogeneous group of robots (mainly a pair of two differing locomotion types) would collaboratively search environments together to reach survivors of disasters...
+\end_layout
+
+\begin_layout Standard
+These applications of robotic fleets working together demonstrate how a heterogeneous multi-robotic system offering different locomotion utility is more optimised for realistic open world environments;
+ Thus expanding the scope and quality of tasks SAR robotic systems could execute.
+\end_layout
+
+\begin_layout Section
+Motivation
+\end_layout
+
+\begin_layout Standard
+However,
+ the amount of research investigating fleets utilising all four locomotion types is extremely limited.
+ To the best of my knowledge,
+ this is the first study to investigate the coordination of a heterogeneous robot fleet containing all methods of locomotion.
+ This derives from the hostile environments,
+ computational complexity and exponential chance of faults that arise when multiple robots are being used together.
+ Current experimental research is focusing on communication and bandwidth constraints within robot fleets,
+ as well as the synchronisation of individual robots systems into fleets,
+ such as path planning and mapping;
+ With the works tending towards fully autonomous heterogeneous multi-robotic teams that can be deployed for SAR missions with active perception.
+ Assuming the relief of these constraints,
+ open research questions emerge portraying critical directions to advance the wider adoption of multi-robot systems in SAR.
+ This work addresses the following gaps in the research:
+\end_layout
+
+\begin_layout Standard
+Shared Autonomy
+\end_layout
+
+\begin_layout Standard
+Operational environments:
+\end_layout
+
+\begin_layout Standard
+Interoperability and situational awareness:
+\end_layout
+
+\begin_layout Standard
+engaging in the operational environments and shared autonomy of heterogeneous multi-robotic systems []
+\end_layout
+
+\begin_layout Standard
+The potential of the systems are heighten when united under one framework allows for accurate comparisons of probability and bids in market-based decision making.
+ The standardisation will,
+ allow for a fair bidding in task allocation as all robots will have a consistent evaluation metric,
+ whilst giving the fleet more scalability and flexibility.
+ Additionally,
+ one framework will allow future work to consider decentralised coordination methods.
+ By mitigating the constrained locomotions of the system,
+ the robot fleet will be able to distribute perception data to robots that could not previously access terrain information outside of their peripheral sensor vision.
+\end_layout
+
+\begin_layout Standard
+Furthermore,
+ by utilising a heterogeneous fleet that can interact with and traverse all environments the chance of finding the targets in real world applications will not only be increased as more of the environment becomes accessible;
+ but the large map updates and replanning potential means that the fleet can reorganise themselves to evaluate the terrain information and navigate key agents that can provide triage and medical aid.
+\end_layout
+
+\begin_layout Section
+Aims & Objectives
+\end_layout
+
+\begin_layout Standard
+The aims of this research is to develop a traversability risk assessment framework that can be incorporated into the decision making algorithms of heterogeneous robotic fleets during search and rescue missions.
+ Thus,
+ enhancing the effectiveness of heterogeneous robotic fleets in disaster scenarios by analysing terrain traversability across four locomotion types,
+ enabling coordinated efforts to reduce search times and deliver critical aid in complex,
+ dynamic environments with realistic obstacles.
+\end_layout
+
+\begin_layout Standard
+The following research objectives are initialised:
+\end_layout
+
+\begin_layout Enumerate
+Develop a traversability risk assessment framework that is able to represent all physical terrain obstructions that would impede a robot fleet as a summed probabilistic traversability risks.
+\end_layout
+
+\begin_layout Enumerate
+Extend the framework to include aquatic and aerial traversability risks to enable a heterogeneous fleet mission of different locomotion types.
+ 
+\end_layout
+
+\begin_layout Enumerate
+Consider non-physical environmental factors such as temperature,
+ humidity and radiation in the probabilistic risk model.
+\end_layout
+
+\begin_layout Enumerate
+Produce a centralised mission planning algorithm to coordinate the fleet.
+ Introduce more robotic agents of differing locomotion type,
+ and consider how the system will handle and distribute the agents efficiently based on suitable terrain for each locomotion type.
+\end_layout
+
+\begin_layout Enumerate
+Simulate the framework in urban,
+ rural and hybrid disaster scenarios,
+ portraying that the algorithm works for a heterogeneous fleet of robots with all locomotion types,
+ and can provided immediate relief to survivors.
+\end_layout
+
+\begin_layout Enumerate
+Demonstrate the framework works for a heterogeneous robotic fleet in urban-rural hybrid scenarios with one combination of locomotion types.
+\end_layout
+
+\begin_layout Section
+Organisation of Report
+\end_layout
+
+\begin_layout Standard
+The rest of the report is organised and structured as follows:
+\end_layout
+
+\begin_layout Description
+
+\series bold
+Chapter 2
+\series default
+ displays the current literature review around flee
+\end_layout
+
+\begin_layout Description
+Chapter 
+\series bold
+3
+\series default
+ ...
+\end_layout
+
+\begin_layout Description
+Chapter 
+\series bold
+4 ....
+\end_layout
+
+\begin_layout Description
+Chapter 
+\series bold
+5 ....
+\end_layout
+
+\end_body
+\end_document
