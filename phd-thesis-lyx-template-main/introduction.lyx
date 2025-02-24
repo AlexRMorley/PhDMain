@@ -145,12 +145,13 @@ With the modern robotic fleets that are deployed in search and rescue (SAR) miss
  flooding,
  torrential rain,
  or urban-forest interfaces).
- Robotic engineers would need to employ a fleet that incorporates all four robotic locomotion types to surpass these locomotive limitations [].
+ Robotic engineers would need to employ a fleet that incorporates all types of robotic locomotion to surpass these locomotive limitations [].
  These locomotion types include;
  Legged robots,
  Aerial robots,
  Nautical robots,
- and Driven Robots.
+ Driven robots,
+ and Surface robots.
  Each type of robot should not only be able to inspect the mission site but should also be able to perform actions in the environment such as delivering a care package or providing immediate aid to individuals in need.
  
 \end_layout
@@ -172,7 +173,8 @@ This work will investigate the utilisation of a centralised mission planning alg
  Therefore,
  a lower traversability risk would mean a more suitable terrain for a specified locomotion type.
  The fleet coordination and agent distribution will be based on suitable terrain for each locomotion type,
- encouraging faster search times for survivors and being capable of providing immediate relief.
+ encouraging faster search times for survivors,
+ whilst being capable rearranging robots that can provide immediate relief.
  Whilst considering power management for navigation.
  Ensuring post-calamity environments are traversable and physical aid can be distributed to survivors promptly,
  to prolong their chances of survival.
@@ -225,14 +227,17 @@ engaging in the operational environments and shared autonomy of heterogeneous mu
 \end_layout
 
 \begin_layout Standard
-The potential of the systems are heighten when united under one framework allows for accurate comparisons of probability and bids in market-based decision making.
+The potential of the systems are heightened when united under one framework,
+ allowing for accurate standardised comparisons of probability and bids in market-based decision making.
  The standardisation will,
  allow for a fair bidding in task allocation as all robots will have a consistent evaluation metric,
  whilst giving the fleet more scalability and flexibility.
  Additionally,
  one framework will allow future work to consider decentralised coordination methods.
  By mitigating the constrained locomotions of the system,
- the robot fleet will be able to distribute perception data to robots that could not previously access terrain information outside of their peripheral sensor vision.
+ the robot fleet will be able to distribute perception data to robots that could not previously access terrain information outside of their peripheral sensor vision;
+ for example a Unmanned ground Vehicle (UGV) being unable to scan and map sharp cliffs in its vicinity seen in [],
+ the use of a Unmanned aerial vehicle (UAV) would be able to scan the drop-off with minimal risk and be able to merge maps with the UGV to fill in the gaps.
 \end_layout
 
 \begin_layout Standard

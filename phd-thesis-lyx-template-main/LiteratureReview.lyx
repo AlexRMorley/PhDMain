@@ -134,10 +134,10 @@ Introduction
 \end_layout
 
 \begin_layout Standard
-To initialise a concept for a frame work the current field of heterogeneous multi-robotic systems needs to be understood to ensure a significant impact in the literature.
- This section of the report will begin with a brief overview of Multi-robot SAR and the state of the art systems that are being deployed.
+To initialise the concept of a frame work the current field of heterogeneous multi-robotic systems needs to be understood to ensure a significant impact in the literature.
+ This section of the report will begin with a brief overview of Multi-robot SAR and the state-of-the-art systems that are being deployed.
  Given the nature of multi-robotics there are a lot of sub-systems that need to be addressed and considered to fabricate a suitable framework.
- The following sections will present brief summary of each  for a synchronous integration of each system
+ The following sections will present a brief summary of the current methods and challenges in multi-robotics that are considered in the synchronous integration of all systems.
 \end_layout
 
 \begin_layout Section
@@ -145,13 +145,142 @@ Disaster Robotics:
  Multi-Robot SAR
 \end_layout
 
+\begin_layout Standard
+In disaster robotics,
+ 
+\end_layout
+
 \begin_layout Section
 Algorithms for Risk assessment 
 \end_layout
 
 \begin_layout Standard
+Defining the term traversability as the ability for a robot or autonomous vehicle to navigate through an environment safely [define traverse],
+ clarify the need for traversability risk assessments in the framework.
+ This work will encompass all variety of risks in the taxonomy,
+ including traversability-based and efficiency-based risk;
+ traversability-based is classified as physical elements such as terrain elevation,
+ the grounds fitness to a plane (roughness) and obstacles that hinder movement,
+ compared to the communication loss and battery consumption in efficiency-based.
+\end_layout
+
+\begin_layout Subsection
+Traversability-Based Risk
+\end_layout
+
+\begin_layout Standard
+Current characterisation of traversability risks split into sensor-based and map-based characterisation.
+ 
+\end_layout
+
+\begin_layout Standard
+The prior is the the use of sensors to communicate potential risks to agents and is mainly seen in applications of basic obstacle avoidance and off-road navigation.
+ Early navigation methods used a concept of instant goals,
+ in a globally convergent path planning system where the risk of collision was characterised as the minimum distance to an obstacle from a range finder.
+ Many other navigation and model predictive control algorithms generate a restricted path for a autonomous vehicle to follow based on the obstacle representations,
+ ensuring a boundary is inaccessible reducing collisions.
+ []
+\end_layout
+
+\begin_layout Standard
+Alternatively sliding mode control law proposed in [],
+ establishes pre-set distances from the obstacles boundary that is maintained,
+ the risk is characterised by the sliding surface not the obstacles (a function of length).
+\end_layout
+
+\begin_layout Standard
+Other risk definitions such as collision ellipsoids,
+ form circles of radius 
+\begin_inset Formula $r$
+\end_inset
+
+ around the main robot and other agents,
+ limiting the likelihood that the centres of the machines cross into an different ellipsoid.
+ This method differs to deterministic path planning,
+ by introducing a chance constraint,
+ ensuring the probability of agent collision does not exceed an upper bound.
+\end_layout
+
+\begin_layout Standard
+Key terrain parameters have been considered in [],
+ using sensors to create cohesion and internal friction angle parameters,
+ that can estimate a robot traversability risk metric based on terrain shear strength.
+ (READ READ READ) 
+\end_layout
+
+\begin_layout Standard
+Sensors-based characterisation have been seen in more complex techniques such as exponential utility functions;
+ particle filtering models ;
+ and finally quantile regression.
+\end_layout
+
+\begin_layout Standard
+The former characterisation of map-based risks are approaches use an environmental map as the input,
+ providing terrain data from camera,
+ IMU,
+ GPS,
+ LiDAR to depict terrains and their traversability.
+ The primary map-based algorithm is the 2D Bayesian occupancy grid,
+ modelling the environment as a probable grid of cells that represent fragments of the environment,
+ whilst attaching a probabilistic variable of how likely the element in the grid is to be occupied.
+ This estimate is based and updated based on the Bayesian filter,
+ that considers each cell an individual entity.
+ Voxel maps were introduced for 3D mapping applications representing volumes of space as a voxel element (3D pixel),
+ however these maps scaled poorly due to large memory requirements.
+ Costly copy operations need to be performed every time the map area is expanded due to the grid map being initialised to a bounding box regardless of actual distribution.
+\end_layout
+
+\begin_layout Standard
+Other grid based traversability maps have been used that exclude occupancy probability and focus on the possibility of the robot successfully driving over a terrain feature,
+ by analysing the a 2D probabilistic grid with multiple sensors to acquiring more information such as terrain slopes [].
+ This was expanded,
+ as the authors constructed a traversability map that deployed three fundamental terrain characteristics:
+ slope,
+ curvature and roughness.
+\end_layout
+
+\begin_layout Standard
+More practical mapping methods such as 2.5D Digital Elevation Maps (DEM),
+ expand on 2D mapping by storing the elevation of a cell instead of occupancy probability.
+ Also known as Cartesian elevation maps,
+ DEM is widely used for modelling and traversability analysis,
+ however they do not adequately represent vertical obstacles and multi-level structures,
+ such as bridges and overhangs.
+ This lead to the development of multi-level surface (MLS) maps allowing multiple variables in each cell that could depict multiple surfaces.
+\end_layout
+
+\begin_layout Standard
+The previous work although note-worthy was still required a large amount of memory and significant assumptions about the corresponding environment,
+ nor did it address the difference between free and unknown space.
+ This limitation was resolved with the founding of the Octree hierarchical data structure,
+ a memory-efficient,
+ 3D volumetric occupancy map.Since it is hierarchical the tree can be cut at any level to obtain coarser sub-division if inner nodes are maintained,
+ such that the volume is recursively subdivided into eight sub-volumes until a given minimum voxel size is reached determining the resolution.
+ If a certain volume is measure as occupied the corresponding node in the octree is initialised.
+ Uninitialized nodes could be free space or unknown,
+ this ambiguity is resolved by explicitly representing free volumes in the tree as the volumes between the sensor and the range end-point of a time-of-flight reading (via ray casting).
+ Unknown areas are implicitly initalised.
+ This use of boolean occupancy states allows for a compact representation of the structure,
+ such that if all children of a node have the same state (occupied or free) they can be pruned.
+\end_layout
+
+\begin_layout Standard
+The Octomap framework,
+ derived from octrees can be extended to enrich the map with additional terrain information at each voxel,
+ such as colour and temperature demonstrating the scalability of the algorithm.
+ However,
+ limited reserach has been undertaken for the merging of ocotmaps for the application of multi-robotics due to it complexity and lack of support for global optimisation to fix mapping errors and odometry drift.
+ Alternative mapping techniques such as Ski maps and Real Time Appearance Based map (RTABMap) have faster updates and can fix odometry errors with updates,
+ at the expense of being less efficient with larger maps.
+\end_layout
+
+\begin_layout Subsection
+Efficiency-Based Risk
+\end_layout
+
+\begin_layout Standard
 Cost maps,
- Probabilistic Risk Models
+ Probabilistic Risk Model s
 \end_layout
 
 \begin_layout Standard
@@ -159,7 +288,7 @@ Semantic Segmentation
 \end_layout
 
 \begin_layout Section
-Localisation and Fleet Mapping
+Localisation and Fleet Mapping (2.3)
 \end_layout
 
 \begin_layout Standard
