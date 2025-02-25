@@ -205,7 +205,7 @@ Other risk definitions such as collision ellipsoids,
 Key terrain parameters have been considered in [],
  using sensors to create cohesion and internal friction angle parameters,
  that can estimate a robot traversability risk metric based on terrain shear strength.
- (READ READ READ) 
+ (Expand on)
 \end_layout
 
 \begin_layout Standard
@@ -274,8 +274,52 @@ The Octomap framework,
  at the expense of being less efficient with larger maps.
 \end_layout
 
+\begin_layout Standard
+To more appropriately access risk the Lambda Field framework was developed in which the risks is stored as a rate (
+\begin_inset Formula $\lambda$
+\end_inset
+
+) of likelihood a collision will occur in each cell at a given position.
+ The risk function can be any risk assosicated with nature not just collisions,
+ with more complicated extensions which present a new risk by considering a harmful event as a time to deform the wheel of the robot,
+ calculating risk as a maximum potential energy absorbed by said wheel,
+ such that each cell is measured by its the likelihood for the robot to cross it.
+\end_layout
+
+\begin_layout Standard
+It is clear from the literature that for a concrete risk assessment of the environment a mixture of sensor-based and map-based risk characterisation is needed to detect potential damage to the vehicle,
+ thus inhibiting traversability.
+ By fusing both characterisations together each robot agent will be able to interoperate its environment and be fully self aware of the risks in the environment,
+ by considering occupancy maps with other risk attributes in the environment.
+ Additionally,
+ recent work has discussed environments with dynamic and occluded obstacles which are definitive risk factors in the real world.
+ (Expand on)
+\end_layout
+
+\begin_layout Standard
+Noteworthy frameworks such as neural networks or machine learning approaches to learn dynamic traversability mapping,
+ providing efficient segmentation of dynamic and static environmental zones.
+ Unfortunately the general drawback of neural networks is the dependency of the training data set and what the training step would teach the system.
+\end_layout
+
+\begin_layout Standard
+(Potential to extend this section by looking at locomotion specific risk assessments characterisation)
+\end_layout
+
 \begin_layout Subsection
 Efficiency-Based Risk
+\end_layout
+
+\begin_layout Standard
+Efficiency based risk
+\end_layout
+
+\begin_layout Subsection
+Quantifying Risk
+\end_layout
+
+\begin_layout Standard
+To quantify the risk characterised in the preceding section 
 \end_layout
 
 \begin_layout Standard
@@ -288,7 +332,7 @@ Semantic Segmentation
 \end_layout
 
 \begin_layout Section
-Localisation and Fleet Mapping (2.3)
+Localisation and Fleet Mapping 
 \end_layout
 
 \begin_layout Standard
@@ -313,6 +357,133 @@ Alternatives to Octomaps,
 
 \begin_layout Section
 Path Planning and Collision avoidance
+\end_layout
+
+\begin_layout Standard
+Path planning for robots and autonomous mobile vehicles focuses on the map-based risk assessments so that the robot does not collide into obstacles and other physical risks in their environment.
+ Therefore,
+ the risk factor is the main driving component for robot navigation and fleet decision making.
+ Starting with terrestrial mobile robots,
+ traversability risk is assessed along a virtual paths which are superimposed onto metric maps or grids.
+ By tessellating the environment into a grid of cells of a fixed size where inside the cell the field maintains constant,
+ allows the environmental field denoted as 
+\begin_inset Formula $e:\mathbb{R}^{n}\rightarrow\mathbb{R}$
+\end_inset
+
+ to be broken down an appropriately assess the occupation and variables of the field inside the cells.
+\end_layout
+
+\begin_layout Standard
+The simplest function measures the occupancy cost of a list of cells in the grid (to form a path or trajectory).
+ Occupancy being a binary classifier allows a reward to be assigned to each cell based on its occupancy status;
+ positive values denoting occupied and negative denoting free space.
+ Comparing the summed rewards of each path (list of cells) allows the robot to match the trajectory with the highest yielded reward to being the saftest path to a predetermined goal.
+ When considering the use of Bayesian occupancy grids the risk of traversing a path 
+\begin_inset Formula $P_{|0,i|}$
+\end_inset
+
+ given by a set of 
+\begin_inset Formula $i$
+\end_inset
+
+ cells is as follows:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+R(P_{|0,i|})=1-\prod_{j=0}^{i}(1-P_{j}),
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $P_{j}$
+\end_inset
+
+ is the probability of occupancy within the 
+\begin_inset Formula $j^{th}$
+\end_inset
+
+ cell.
+ Other work shows the probabilistic definition of risk as the likelihood of the robot finishing the set path or trajectory in the map given as:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+R(P_{|0,i|})=1-\prod_{j=0}^{i}\prod_{k=0}^{r}(1-r_{k}),
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $r_{k}$
+\end_inset
+
+ is the probability an occupied cell 
+\begin_inset Formula $k$
+\end_inset
+
+ to cause failures at position 
+\begin_inset Formula $j$
+\end_inset
+
+ given the history of the robot traversing cells from 
+\begin_inset Formula $0$
+\end_inset
+
+ to 
+\begin_inset Formula $j$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+More appropriate solution were developed,
+ due to limitations of the simple equations incorrectly evaluating the field in which the paths traversed,
+ such as the work of [] which considered the risk of a path to be a measurement of expected loss,
+ forming the loss function
+\begin_inset Formula $L(x_{v},x_{c})$
+\end_inset
+
+ where 
+\begin_inset Formula $x_{v}$
+\end_inset
+
+ is the vehicle state and 
+\begin_inset Formula $x_{c}$
+\end_inset
+
+ is the cell state:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+R(P)=\sum_{i=0}^{N-1}P_{i}\cdot L(x_{v},x_{c}),
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+defining the risk as the total loss of kinetic energy in the system.
+\end_layout
+
+\begin_layout Standard
+.
 \end_layout
 
 \begin_layout Section

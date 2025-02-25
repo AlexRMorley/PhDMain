@@ -1,5 +1,5 @@
-#LyX 2.3 created this file. For more info see http://www.lyx.org/
-\lyxformat 544
+#LyX 2.4 created this file. For more info see https://www.lyx.org/
+\lyxformat 620
 \begin_document
 \begin_header
 \save_transient_properties true
@@ -38,11 +38,11 @@ theorems-ams-extended-bytype
 theorems-chap-bytype
 customHeadersFooters
 \end_modules
-\maintain_unincluded_children true
+\maintain_unincluded_children strict
 \language british
 \language_package auto
-\inputencoding auto
-\fontencoding global
+\inputencoding auto-legacy
+\fontencoding auto
 \font_roman "default" "default"
 \font_sans "default" "default"
 \font_typewriter "default" "default"
@@ -50,7 +50,9 @@ customHeadersFooters
 \font_default_family default
 \use_non_tex_fonts false
 \font_sc false
-\font_osf false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
 \font_sf_scale 100 100
 \font_tt_scale 100 100
 \use_microtype true
@@ -73,7 +75,7 @@ customHeadersFooters
 \pdf_colorlinks false
 \pdf_backref false
 \pdf_pdfusetitle true
-\papersize a4paper
+\papersize a4
 \use_geometry true
 \use_package amsmath 1
 \use_package amssymb 1
@@ -94,7 +96,9 @@ customHeadersFooters
 \suppress_date false
 \justification true
 \use_refstyle 1
+\use_formatted_ref 0
 \use_minted 0
+\use_lineno 0
 \index Index
 \shortcut idx
 \color #008000
@@ -114,11 +118,16 @@ customHeadersFooters
 \papercolumns 1
 \papersides 1
 \paperpagestyle fancy
+\tablestyle default
 \tracking_changes false
 \output_changes false
+\change_bars false
+\postpone_fragile_content false
 \html_math_output 0
 \html_css_as_file 0
 \html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
 \end_header
 
 \begin_body
@@ -201,6 +210,7 @@ LatexCommand tableofcontents
 
 \shape smallcaps
 Word count:
+
 \shape default
  
 \begin_inset ERT
@@ -462,6 +472,7 @@ headrulewidth}{0pt}
 \begin_inset CommandInset include
 LatexCommand input
 filename "../list_of_abbreviations.lyx"
+literal "true"
 
 \end_inset
 
@@ -548,6 +559,7 @@ headrulewidth}{0pt}
 \begin_inset CommandInset include
 LatexCommand input
 filename "../list_of_symbols.lyx"
+literal "true"
 
 \end_inset
 
@@ -909,8 +921,7 @@ headrulewidth}{0pt}
 \begin_layout Enumerate
 \noindent
 \align left
-The author of this thesis (including any appendices and/or schedules to
- this thesis) owns certain copyright or related rights in it (the 
+The author of this thesis (including any appendices and/or schedules to this thesis) owns certain copyright or related rights in it (the 
 \begin_inset Quotes bld
 \end_inset
 
@@ -918,29 +929,33 @@ Copyright
 \begin_inset Quotes brd
 \end_inset
 
-) and they have given The University of Manchester certain rights to use
- such Copyright, including for administrative purposes.
+) and they have given The University of Manchester certain rights to use such Copyright,
+ including for administrative purposes.
 \end_layout
 
 \begin_layout Enumerate
 \noindent
 \align left
-Copies of this thesis, either in full or in extracts and whether in hard
- or electronic copy, may be made 
+Copies of this thesis,
+ either in full or in extracts and whether in hard or electronic copy,
+ may be made 
 \series bold
 only
 \series default
- in accordance with the Copyright, Designs and Patents Act 1988 (as amended)
- and regulations issued under it or, where appropriate, in accordance with
- licensing agreements which the University has from time to time.
+ in accordance with the Copyright,
+ Designs and Patents Act 1988 (as amended) and regulations issued under it or,
+ where appropriate,
+ in accordance with licensing agreements which the University has from time to time.
  This page must form part of any such copies made.
 \end_layout
 
 \begin_layout Enumerate
 \noindent
 \align left
-The ownership of certain Copyright, patents, designs, trademarks and other
- intellectual property (the 
+The ownership of certain Copyright,
+ patents,
+ designs,
+ trademarks and other intellectual property (the 
 \begin_inset Quotes bld
 \end_inset
 
@@ -948,8 +963,8 @@ Intellectual Property
 \begin_inset Quotes brd
 \end_inset
 
-) and any reproductions of copyright works in the thesis, for example graphs
- and tables (
+) and any reproductions of copyright works in the thesis,
+ for example graphs and tables (
 \begin_inset Quotes bld
 \end_inset
 
@@ -957,20 +972,18 @@ Reproductions
 \begin_inset Quotes brd
 \end_inset
 
-), which may be described in this thesis, may not be owned by the author
- and may be owned by third parties.
- Such Intellectual Property and Reproductions cannot and must not be made
- available for use without the prior written permission of the owner(s)
- of the relevant Intellectual Property and/or Reproductions.
+),
+ which may be described in this thesis,
+ may not be owned by the author and may be owned by third parties.
+ Such Intellectual Property and Reproductions cannot and must not be made available for use without the prior written permission of the owner(s) of the relevant Intellectual Property and/or Reproductions.
 \end_layout
 
 \begin_layout Enumerate
 \noindent
 \align left
-Further information on the conditions under which disclosure, publication
- and commercialisation of this thesis, the Copyright and any Intellectual
- Property and/or Reproductions described in it may take place is available
- in the University IP Policy (see 
+Further information on the conditions under which disclosure,
+ publication and commercialisation of this thesis,
+ the Copyright and any Intellectual Property and/or Reproductions described in it may take place is available in the University IP Policy (see 
 \begin_inset Flex URL
 status open
 
@@ -981,8 +994,9 @@ http://documents.manchester.ac.uk/DocuInfo.aspx?DocID=24420
 
 \end_inset
 
-), in any relevant Thesis restriction declarations deposited in the University
- Library, The University Library's regulations (see 
+),
+ in any relevant Thesis restriction declarations deposited in the University Library,
+ The University Library's regulations (see 
 \begin_inset Flex URL
 status open
 
