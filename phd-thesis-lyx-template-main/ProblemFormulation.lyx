@@ -140,7 +140,7 @@ Traversability is defined as the ability of a robot or autonomous vehicle to nav
 \end_layout
 
 \begin_layout Standard
-All considered hazards are shown in Table :
+All considered hazards are shown in Tables :
 \end_layout
 
 \begin_layout Standard
@@ -2109,6 +2109,379 @@ Table showing Human & Animal Hazards as potential Traversability Metrics
 
 \end_layout
 
+\begin_layout Standard
+\begin_inset Float table
+placement H
+alignment center
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="8" columns="4">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top" width="6cm">
+<column alignment="center" valignment="top" width="6cm">
+<column alignment="center" valignment="top" width="2cm">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Hazard
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Risk
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Locomotion Type Affected
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Priority
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Battery Life
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Robot fails mid-mission due to insufficient power cell
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+All
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+High
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Communication loss
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Robot loses coordination or data sharing
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+All
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+High
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Computational overload
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Delays in decision making and path planning
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Aquatic
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+High
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Sensor Degration
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Strong Underwater displacement
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Aquatic
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+High
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Table showing Underwater Hazards as potential Traversability Metrics
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Section
 Task Definition
 \end_layout
@@ -2117,8 +2490,174 @@ Task Definition
 Corners for wind.
 \end_layout
 
+\begin_layout Standard
+Using Octomaps for the path planning and navigation for each agent in the fleet.
+ Utilise the basics of lambda field to work out the traversability risks of voxel based on how likely the robot loses all kinetic energy (stops moving).
+ The risks can be calculated for each discretised voxel cell based off the octomap information stored at each voxel such as temperature,
+ radiation and wind.
+\end_layout
+
+\begin_layout Standard
+First consider a 2D case,
+ for a positive scalar field 
+\begin_inset Formula $\lambda(x)$
+\end_inset
+
+,
+ 
+\begin_inset Formula $x\in\mathbb{R}^{2}$
+\end_inset
+
+the probability to encounter at least one break down in a path 
+\begin_inset Formula $P\subset\mathbb{R}^{2}$
+\end_inset
+
+is
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+p(break|P)=1-exp(-\intop_{P}\lambda(x)dx)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+It is impossible to both compute and store a field 
+\begin_inset Formula $\lambda(x)$
+\end_inset
+
+.
+ Hence the field must be discretised similar to a Bayesian occupancy grid.
+ Given the cells are small enough,
+ a path P crossing cells in the array 
+\begin_inset Formula $C=\{c_{0},\ldots,c_{N}\}$
+\end_inset
+
+,
+ where each cell has an area of A and is associated by a calculated 
+\begin_inset Formula $\lambda_{i}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+p(break|P)\approx1-exp(-\Lambda(C)),
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\Lambda(C)=A\sum_{c_{i}\in C}\lambda_{i}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Moving to the 3d dimensional case required 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\Lambda(x,y,z)\rightarrow$
+\end_inset
+
+ lambda field value at each voxel.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $C(i,j,k)\rightarrow$
+\end_inset
+
+ Chunk at grid index 
+\begin_inset Formula $(i,j,k)$
+\end_inset
+
+ where 
+\begin_inset Formula $N=16^{3}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\lambda_{T},\lambda_{R},\lambda_{W}\rightarrow$
+\end_inset
+
+Risk components for temperature,
+ radiation,
+ wind pressure (generalized as different risk factors).
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $E[\Lambda_{c}]\rightarrow$
+\end_inset
+
+Expected risk (mean lambda) over the chunk.
+\end_layout
+
+\begin_layout Standard
+Compute the average traversability risk of each chunk.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+E[\Lambda_{c}]=\frac{1}{N}\sum_{x,y,z\in C(i,j,k)}\Lambda(x,y,z)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Upgrading to a multi-modal risk aggregation
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\Lambda_{C}(i,j,k)=\frac{1}{N}\sum_{x,y,z\in C(i,j,k)}(\lambda_{T}(x,y,z)+\lambda_{R}(x,y,z)+\lambda_{W}(x,y,z)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Include variable weights for different robots
+\begin_inset Formula 
+\[
+\Lambda_{C}(i,j,k)=\frac{1}{N}\sum_{x,y,z\in C(i,j,k)}(\omega_{T}\lambda_{T}(x,y,z)+\omega_{R}\lambda_{R}(x,y,z)+\omega_{W}\lambda_{W}(x,y,z)
+\]
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Section
 Problem Statement
+\end_layout
+
+\begin_layout Standard
+https://ieeexplore.ieee.org/document/8540551
 \end_layout
 
 \end_body
