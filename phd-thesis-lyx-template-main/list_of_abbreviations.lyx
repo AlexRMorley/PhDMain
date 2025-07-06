@@ -96,27 +96,101 @@ customHeadersFooters
 
 \begin_layout Labeling
 \labelwidthstring 00.00.0000
-SAR Search and Rescue
+
+\series bold
+SAR
+\series default
+ Search and Rescue
 \end_layout
 
 \begin_layout Labeling
 \labelwidthstring 00.00.0000
-UGV Unmanned Ground Vehicle
+
+\series bold
+UGV
+\series default
+ Unmanned Ground Vehicle
 \end_layout
 
 \begin_layout Labeling
 \labelwidthstring 00.00.0000
-UAV Unmanned Aerial Vehicle
+
+\series bold
+UAV
+\series default
+ Unmanned Aerial Vehicle
 \end_layout
 
 \begin_layout Labeling
 \labelwidthstring 00.00.0000
-USV Unmanned Surface Vehicle
+
+\series bold
+USV
+\series default
+ Unmanned Surface Vehicle
 \end_layout
 
 \begin_layout Labeling
 \labelwidthstring 00.00.0000
-UUV Unmanned Underwater Vehicle
+
+\series bold
+UUV
+\series default
+ Unmanned Underwater Vehicle
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\series bold
+GPS
+\series default
+ Global Positioning System
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\series bold
+LiDAR
+\series default
+ Light Detection and Ranging
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\series bold
+ICP
+\series default
+ Iterative Closest Point
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\series bold
+SHOT
+\series default
+ Signature of Histograms of Orientations
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\series bold
+GCS 
+\series default
+Ground Control Station
+\end_layout
+
+\begin_layout Labeling
+\labelwidthstring 00.00.0000
+
+\series bold
+IMU 
+\series default
+Inertial Measurement Unit
 \end_layout
 
 \end_body

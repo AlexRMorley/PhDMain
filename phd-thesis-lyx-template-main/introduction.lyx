@@ -122,14 +122,10 @@ customHeadersFooters
 \begin_body
 
 \begin_layout Chapter
-
-\shape smallcaps
 Introduction
 \end_layout
 
 \begin_layout Left Header
-
-\shape smallcaps
 Introduction
 \end_layout
 
@@ -140,25 +136,44 @@ Background
 \begin_layout Standard
 With the modern robotic fleets deployed in search and rescue (SAR) missions,
  the decision-making and path-planning coordination do not realistically represent the ground truth of open-world environments.
- Current coordination strategies fail to account for the diverse locomotion capabilities required to navigate dynamic and unpredictable terrains,
- such as those encountered during natural disasters (e.g.,
+ Current fleets and their respective coordination strategies fail to account for the diverse,
+ dynamic and unpredictable terrains that need to be navigated,
+ such as those encountered during natural disasters:
  flooding,
  torrential rain,
- or urban-forest interfaces).
- Robotic engineers need to employ a fleet that incorporates all types of robotic locomotion to surpass these limitations [].
- These locomotion types include Legged,
+ or urban-forest interfaces.
+ To traverse these complex environments,
+ heterogeneous robots have been developed with a wide array of differing locomotion methods.
+ The primary methods of locomotion include Legged,
  Aerial,
  Nautical,
  Driven,
  and Surface robots.
+ However,
+ no single locomotion mode can navigate every condition with equal safety and efficiency.
+ Robotic engineers would need to employ a fleet that incorporates all types of robotic locomotion to surpass these limitations,
+ and future SAR fleet mission planners should be able to coordinate and deploy a locomotion-diverse heterogeneous fleet under a unified framework.
+ 
+\end_layout
+
+\begin_layout Standard
+A heterogeneous fleet can pair legged robots that climb debris with aerial drones that provide rapid situational awareness,
+ nautical vehicles that operate in flooded streets,
+ driven platforms that cover broad flat regions quickly and surface skimming robots that traverse unstable ground or bodies of water without sinking.
  Each type of robot should be able to inspect the mission site and perform actions in the environment,
- such as delivering a care package or providing immediate aid to individuals in need.
+ such as delivering a care package or providing immediate aid to individuals in need,
+ where its particular mobility yields the lowest risk of damage or delay.
+ In the works of Daniel H.
+ Stolfi et al.
+ [1],
+ they showed the benefit of a multi-locomotion robotic fleet for surveillance,
+ engaging with three robots of differing locomotion types to achieve a detection rate of human escapees of 89%.
  
 \end_layout
 
 \begin_layout Standard
 Despite the potential of such diverse fleets,
- the literature does not adequately address scenarios requiring the coordinated deployment of these locomotion types.
+ the literature does not adequately address scenarios requiring the coordinated deployment of all four locomotion types.
  Hence,
  each agent's traversability capability and assessments of risks when navigating terrain should be confronted.
  This research seeks to bridge these gaps by investigating a novel framework for coordinating heterogeneous robotic fleets to ensure operational efficacy in realistic,
@@ -168,6 +183,7 @@ Despite the potential of such diverse fleets,
 \begin_layout Standard
 This work will investigate the utilisation of a centralised mission planning algorithm derived from a traversability risk assessment framework.
  The framework is a probabilistic risk model estimating the sum of all traversability risks in a robotic agent's environment that would damage the robot or impede the mission.
+ These traversability risks could be physical obstructions in the environment that would interrupt a robot's path or an efficiency risk such as an intense path-way that would drain the robot's battery life at a rate which would not be sustainable for the whole mission.
  The algorithm will coordinate a heterogeneous multi-robotic fleet deployment containing differing locomotion types.
  Therefore,
  a lower traversability risk would mean a more suitable terrain for a specified locomotion type.
@@ -178,7 +194,17 @@ This work will investigate the utilisation of a centralised mission planning alg
 
 \begin_layout Standard
 There has been extensive research on cooperative robotics in SAR operations,
- where a heterogeneous group of robots (mainly a pair of two differing locomotion types) would collaboratively search environments together to reach survivors of disasters...
+ where a heterogeneous group of robots (mainly a pair of two differing locomotion types) would collaboratively search environments together to reach survivors of disasters.
+ For example,
+ ground robots being supported by multiple drones [2,3,4] or even deploying their own drones [5].
+ Additionally,
+ the survey by Ziye Zhou et al.
+ highlights the growing trend of multi-domain cooperation,
+ where underwater robots collaborate with aerial and surface vehicles to overcome limitations in underwater communication and navigation.
+ This integration enhances mission efficiency by enabling tasks like data relay,
+ precise positioning,
+ and broad-area monitoring across different operational domains [6].
+ 
 \end_layout
 
 \begin_layout Standard
@@ -191,37 +217,74 @@ Motivation
 \end_layout
 
 \begin_layout Standard
-However,
- the amount of research investigating fleets utilising all four locomotion types is extremely limited.
+Deploying a heterogeneous fleet of robots into a complex disaster zone,
+ each equipped with their own distinct locomotion capabilities,
+ attempts to achieve a singular overarching purpose:
+ to ensure that every point in the environment can be reached by at least one agent,
+ thereby maximising the probability of locating survivors and providing immediate relief.
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Image
+\end_layout
+
+\begin_layout Standard
+Despite increasing interest in multi-robot systems for search and rescue (SAR),
+ the volume of research exploring the coordination of fleets incorporating all four primary types of autonomous unmanned vehicles:
+ ground (UGV),
+ aerial (UAV),
+ surface (USV),
+ and underwater (UUV) remains extremely limited.
  To the best of our knowledge,
- this is the first study to examine the coordination of a heterogeneous robot fleet containing all methods of locomotion.
- The lack of research derives from hostile environments,
- computational complexity,
- and the exponential chance of faults that arise when multiple robots synchronously operate together.
- Current experimental studies focus on communication and bandwidth constraints within robot fleets,
- as well as the synchronisation of individual robot systems into fleets,
- such as path planning and mapping,
- With the works tending towards deploying fully autonomous heterogeneous multi-robotic teams for SAR missions with active perception.
- Assuming the relief of these constraints,
- open research questions emerge,
- portraying critical directions to advance the broader adoption of multi-robot systems in SAR.
- This work addresses the following gaps in the research:
+ this is the first study to examine the control and cooperation of such a heterogeneous team within a unified framework.
+ The lack of existing research stems from several fundamental challenges:
+ the computational complexity of synchronising diverse platforms,
+ the harsh and varied operational environments they encounter,
+ and the exponential rise in system faults as more agents are introduced [7].
+ Experimental work to date has focused mainly on communication bottlenecks,
+ bandwidth constraints,
+ and individual integration strategies such as path planning and mapping,
+ often in simulation or limited domain settings.
+ Recent literature,
+ such as the work of Peña Queralta et al.
+ [8],
+ emphasises the need to bridge control and perception across domains and highlights emerging trends toward autonomous heterogeneous teams with active perception.
+ Assuming these systemic and technological constraints can be mitigated,
+ critical research directions open up,
+ including questions of shared autonomy,
+ dynamic situational awareness,
+ and true interoperability across all locomotion types.
+ This study directly addresses the following core gaps:
 \end_layout
 
-\begin_layout Standard
-Shared Autonomy
+\begin_layout Itemize
+Shared autonomy:
+ enabling efficient human-swarm interaction with minimal operator burden.
 \end_layout
 
-\begin_layout Standard
+\begin_layout Itemize
 Operational environments:
+ tackling the real-world challenges of search and rescue in tough places such as collapsed buildings,
+ marine zones,
+ or subterranean areas.
 \end_layout
 
-\begin_layout Standard
+\begin_layout Itemize
 Interoperability and situational awareness:
-\end_layout
-
-\begin_layout Standard
-Engaging in the operational environments and shared autonomy of heterogeneous multi-robotic systems []
+ making sure different types of robots can work together smoothly and adapt in real-time,
+ no matter the environment,
+ across land,
+ air,
+ sea,
+ and sub-sea domains.
 \end_layout
 
 \begin_layout Standard
@@ -231,12 +294,12 @@ The potential of the systems is heightened when united under one framework,
  Standardisation will allow for fair bidding in task allocation as all robots will have a consistent evaluation metric,
  giving the fleet more scalability and flexibility.
  Additionally,
- one framework will allow future work to consider decentralised coordination methods.
+ one unified framework will allow future work to consider decentralised coordination methods.
  By mitigating the constrained locomotions of the system,
  the robot fleet will be able to distribute perception data to robots that could not previously access terrain information outside of their peripheral sensor vision;
  for example,
- an Unmanned Ground Vehicle (UGV) being unable to scan and map sharp cliffs in its vicinity seen in [],
- the use of a Unmanned aerial vehicle (UAV) would be able to monitor the drop-off with minimal risk and be able to merge maps with the UGV to fill in the gaps.
+ a UGV being unable to scan and map sharp cliffs in its vicinity seen in [9],
+ the use of one or multiple UAVs would be able to monitor the drop-off with minimal risk and be able to merge maps with the UGV to fill in the gaps.
 \end_layout
 
 \begin_layout Standard
@@ -257,12 +320,8 @@ This research aims to develop a traversability risk assessment framework that ca
  dynamic environments with realistic obstacles.
 \end_layout
 
-\begin_layout Standard
-The following research objectives for this report are initialised:
-\end_layout
-
 \begin_layout Enumerate
-Develop a traversability risk assessment framework that is able to represent all physical terrain obstructions that would impede a robot fleet as a summed probabilistic traversability risk.
+Develop a traversability risk assessment framework that is able to represent physical terrain obstructions that would impede a robot fleet as a summed probabilistic traversability risk.
 \end_layout
 
 \begin_layout Enumerate
@@ -275,7 +334,7 @@ Consider non-physical environmental factors such as temperature,
 \end_layout
 
 \begin_layout Enumerate
-Produce a centralised mission planning algorithm to coordinate the fleet.
+Produce a centralised mission planning algorithm to coordinate the fleet and compare it to a decentralised system.
  Introduce more robotic agents of differing locomotion types and consider how the system will handle and distribute them efficiently based on suitable terrain for each locomotion type.
 \end_layout
 
@@ -324,19 +383,35 @@ Chapter
 \series bold
 3
 \series default
- ...
+ formalises the research problem and defines the assumptions made and the conditions of success from both a mathematical and practical perspective.
 \end_layout
 
 \begin_layout Description
 Chapter 
 \series bold
-4 ....
+4 
+\series default
+documents the technical advances achieved during the first year and positions them against the aims set out in Section 1.3.
+ It opens with the mathematical preliminaries underlying the proposed 
+\begin_inset Formula $λ$
+\end_inset
+
+-field formulation,
+ detailing the practical realisation within an OctoMap-based mapping pipeline,
+ including the extension from 2-D to weighted 3-D voxel chunks.
+ Subsequent subsections summarise the preliminary treatment of environmental hazard layers,
+ the integration of efficiency-based risk terms,
+ and the initial map-fusion experiments.
+ The chapter concludes with a concise statement of contributions to date and highlights the principal shortcomings and open issues that motivate the work planned for Years 2 and 3.
 \end_layout
 
 \begin_layout Description
 Chapter 
 \series bold
-5 ....
+5 
+\series default
+Concludes the report and presents a detailed project plan for the remaining three years of the research project,
+ including potential publications and deliverables.
 \end_layout
 
 \end_body

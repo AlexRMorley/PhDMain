@@ -129,20 +129,895 @@ Progress Review
 Progress Review
 \end_layout
 
-\begin_layout Section
-Environmental Hazards
-\end_layout
-
 \begin_layout Standard
-Physical Terrain Risks
-\end_layout
-
-\begin_layout Standard
-
+This section outlines the progress made so far in the context of the aims and objectives outlined in Section 1.3 and the research gaps identified in Section2.
 \end_layout
 
 \begin_layout Section
-Contributions
+Preliminaries
+\end_layout
+
+\begin_layout Subsection
+Lambda Field Representation
+\end_layout
+
+\begin_layout Standard
+Using Octomaps for the path planning and navigation for each agent in the fleet.
+ Utilise the basics of lambda field to work out the traversability risks of voxel based on how likely the robot loses all kinetic energy (stops moving).
+ The risks can be calculated for each discretised voxel cell based off the OctoMap information stored at each voxel such as temperature,
+ radiation and wind.
+\end_layout
+
+\begin_layout Standard
+First consider a 2D case,
+ for a positive scalar field 
+\begin_inset Formula $\lambda(x)$
+\end_inset
+
+,
+ 
+\begin_inset Formula $x\in\mathbb{R}^{2}$
+\end_inset
+
+the probability to encounter at least one break down in a path 
+\begin_inset Formula $P\subset\mathbb{R}^{2}$
+\end_inset
+
+is
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+p(break|P)=1-exp(-\intop_{P}\lambda(x)dx)
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+It is impossible to both compute and store a field 
+\begin_inset Formula $\lambda(x)$
+\end_inset
+
+.
+ Hence the field must be discretised similar to a Bayesian occupancy grid.
+ Given the cells are small enough,
+ a path P crossing cells in the array 
+\begin_inset Formula $C=\{c_{0},\ldots,c_{N}\}$
+\end_inset
+
+,
+ where each cell has an area of 
+\begin_inset Formula $A$
+\end_inset
+
+ and is associated by a calculated 
+\begin_inset Formula $\lambda_{i}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+p(break|P)\approx1-exp(-\Lambda(C)),
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+\Lambda(C)=A\sum_{c_{i}\in C}\lambda_{i}.
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Now extend the scalar 
+\begin_inset Formula $\lambda$
+\end_inset
+
+ field to account for multi-modal risk influences by defining risk contributions from various environmental sources,
+ such as thermal gradients,
+ radiation exposure,
+ and wind shear.
+ These are denoted respectively as 
+\begin_inset Formula $\lambda_{T}(x,y,z),\lambda_{R}(x,y,z),\lambda_{W}(x,y,z)$
+\end_inset
+
+ and they represent spatially varying risk intensities extracted from OctoMap voxel metadata.
+ To aggregate these into a unified risk score per voxel,
+ a linear combination is used with weights 
+\begin_inset Formula $\omega_{T},\omega_{R},\omega_{W}$
+\end_inset
+
+ that can be adapted to reflect the sensitivity of different robot platforms to specific environmental stressors.
+\end_layout
+
+\begin_layout Standard
+To manage risk at a resolution suitable for high-level planning,
+ the lambda field is aggregated over discrete voxel chunks.
+ These chunks represent local spatial regions in the environment,
+ allowing the system to reduce computational complexity while preserving localised risk characteristics.
+ The expected lambda value 
+\begin_inset Formula $E[\Lambda_{c}]$
+\end_inset
+
+ within a chunk provides a summary statistic that captures the average traversability risk across all constituent voxels.
+ This aggregation is formalised as follows:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+E[\Lambda_{c}]=\frac{1}{N}\sum_{x,y,z\in C(i,j,k)}\Lambda(x,y,z)
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Where 
+\begin_inset Formula $\Lambda(x,y,z)$
+\end_inset
+
+ lambda field value at each voxel.
+ This results in a per-voxel composite risk field 
+\begin_inset Formula 
+\begin{equation}
+\Lambda_{C}(i,j,k)=\frac{1}{N}\sum_{x,y,z\in C(i,j,k)}(\lambda_{T}(x,y,z)+\lambda_{R}(x,y,z)+\lambda_{W}(x,y,z).
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Including platform-specific variable weights for different robots the form of the equation becomes
+\begin_inset Formula 
+\begin{equation}
+\Lambda_{C}(i,j,k)=\frac{1}{N}\sum_{x,y,z\in C(i,j,k)}(\omega_{T}\lambda_{T}(x,y,z)+\omega_{R}\lambda_{R}(x,y,z)+\omega_{W}\lambda_{W}(x,y,z).
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This equation computes the average weighted risk within a volumetric chunk 
+\begin_inset Formula $C(i,j,k)$
+\end_inset
+
+ comprising of 
+\begin_inset Formula $N$
+\end_inset
+
+ voxels.
+ This equation computes the average weighted risk within a volumetric chunk of 
+\begin_inset Formula $H^{3}$
+\end_inset
+
+ voxels;
+ 
+\begin_inset Formula $H=16$
+\end_inset
+
+ is chosen to balance computational efficiency with local resolution,
+ enabling localised risk assessment suitable for path planning and task allocation.
+ The expected lambda risk value 
+\begin_inset Formula $E[\Lambda_{c}]$
+\end_inset
+
+ from Equation (8),
+ is now placed into the probability of agent break down in Equation (6) to assess the mission-loss metric of that agent compared to alternative robots.
+\end_layout
+
+\begin_layout Standard
+Importantly,
+ the weighting parameters 
+\begin_inset Formula $𝜔$
+\end_inset
+
+ are platform-specific and must be calibrated empirically or via simulation to reflect operational tolerances;
+ for instance,
+ aerial drones may assign higher weight to wind-based risk,
+ while ground vehicles may prioritise temperature or terrain instability.
+\end_layout
+
+\begin_layout Standard
+This 3D lambda field formulation enables a robot to estimate the probability of kinetic failure (i.e.,
+ motion loss or stoppage) over a continuous or discretised path through the environment.
+ Integrated into the planning pipeline,
+ this model supports risk-aware decision-making by penalising trajectories through high-risk regions and promoting paths that optimize mission reliability.
+ Furthermore,
+ its modular structure allows additional risk layers (e.g.,
+ chemical exposure or structural load) to be incorporated in future extensions.
+\end_layout
+
+\begin_layout Subsection
+Efficiency-Based Risk Representation
+\end_layout
+
+\begin_layout Standard
+While physical terrain-based hazards are central to estimating immediate locomotion failure,
+ long-term mission success in multi-robot deployments also hinges on internal system constraints.
+ These include energy depletion,
+ computational strain,
+ communication reliability,
+ and sensor degradation.
+ Unlike spatial traversability risks,
+ these efficiency-based risks often emerge from the robot's internal state but may also be influenced by environmental context.
+ To support robust planning and resource-aware coordination,
+ this section extends the lambda field formulation to incorporate such efficiency-based risks into the overall physical spatial risk model.
+\end_layout
+
+\begin_layout Subsubsection
+Voxel-Integrated Efficiency Risk Fields
+\end_layout
+
+\begin_layout Standard
+Some efficiency-related risks such as battery and communication risks can exhibit spatial dependence and are thus representable within the voxel-based lambda field framework.
+ For example,
+ terrain features influence energy expenditure,
+ while environmental occlusion can degrade signal strength.
+ We define two such fields:
+\end_layout
+
+\begin_layout Itemize
+Battery Risk Field 
+\begin_inset Formula $\lambda_{B}(x,y,z)$
+\end_inset
+
+:
+ Represents increased likelihood of failure due to high energy consumption over specific terrain types.
+ A general formulation:
+ 
+\begin_inset Formula 
+\begin{equation}
+\lambda_{B}(x,y,z)=\Upsilon_{1}\centerdot slope(x,y,z)+\Upsilon_{2}\centerdot surface(x,y,z)+\Upsilon_{3}\centerdot elevation(x,y,z),
+\end{equation}
+
+\end_inset
+
+where the weights 
+\begin_inset Formula $\Upsilon_{i}$
+\end_inset
+
+ are learned or tuned variables per robot platform that reflect sensitivity to terrain-induced energy cost.
+ Such as the slope angle of the terrain,
+ the surface roughness and elevation gain.
+\end_layout
+
+\begin_layout Itemize
+Communication Risk Field
+\begin_inset Formula $\lambda_{C}(x,y,z)$
+\end_inset
+
+:
+ Quantifies the likelihood of signal dropout at a given location.
+ One empirical approximation is:
+ 
+\begin_inset Formula 
+\begin{equation}
+\lambda_{C}(x,y,z)=1-\frac{S(x,y,z)}{S_{Max}},
+\end{equation}
+
+\end_inset
+
+where 
+\begin_inset Formula $S(x,y,z)$
+\end_inset
+
+ is the predicted or observed signal strength and 
+\begin_inset Formula $S_{Max}$
+\end_inset
+
+ is the maximum measurable signal level.
+ 
+\end_layout
+
+\begin_layout Standard
+These voxel-level risks are incorporated into the global risk aggregation model alongside physical risks (e.g.,
+ thermal,
+ radiation,
+ wind) as:
+\begin_inset Formula 
+\begin{equation}
+\Lambda_{C}(i,j,k)=\frac{1}{N}\sum_{x,y,z\in C(i,j,k)}(\sum_{r\in R}\omega_{r}\lambda_{r}(x,y,z)).
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $R=\{T,R,W,B,C...\}$
+\end_inset
+
+ denotes the full set of environmental and efficiency risks.
+\end_layout
+
+\begin_layout Subsubsection
+Agent-Centric Efficiency Risk Model
+\end_layout
+
+\begin_layout Standard
+Other efficiency risks are non-spatial in nature and tied directly to the agent’s onboard state,
+ such as processor load or sensor degradation.
+ These cannot be represented spatially but can be incorporated as agent-level scalar terms.
+ We define an aggregate efficiency risk score for each unique agent (
+\begin_inset Formula $i$
+\end_inset
+
+):
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+\Lambda_{eff}^{(i)}=\omega_{B}\centerdot\lambda_{B}+\omega_{C}\centerdot\lambda_{C}+\omega_{S}\centerdot\lambda_{S}+\omega_{N}\centerdot\lambda_{N}.
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Where:
+\end_layout
+
+\begin_layout Description
+\begin_inset Formula $\lambda_{B}$
+\end_inset
+
+:
+ Battery depletion rate (e.g.,
+ power draw over time),
+\end_layout
+
+\begin_layout Description
+\begin_inset Formula $\lambda_{C}$
+\end_inset
+
+:
+ Computational load (e.g.,
+ processor usage),
+\end_layout
+
+\begin_layout Description
+\begin_inset Formula $\lambda_{S}$
+\end_inset
+
+:
+ Sensor degradation (e.g.,
+ reduced accuracy or dropout rate),
+\end_layout
+
+\begin_layout Description
+\begin_inset Formula $\lambda_{N}$
+\end_inset
+
+:
+ Network strain (e.g.,
+ bandwidth limits,
+ packet loss),
+\end_layout
+
+\begin_layout Description
+\begin_inset Formula $\omega$
+\end_inset
+
+:
+ Weights reflecting robot-specific tolerances.
+\end_layout
+
+\begin_layout Standard
+These parameters are dynamically updated based on onboard telemetry and health diagnostics.
+ For example,
+ a high 
+\begin_inset Formula $\lambda_{S}$
+\end_inset
+
+ may result from temperature-induced sensor noise,
+ while 
+\begin_inset Formula $\lambda_{C}$
+\end_inset
+
+ could reflect real-time CPU utilization.
+\end_layout
+
+\begin_layout Subsection
+Hybrid Risk Integration for Decision-Making
+\end_layout
+
+\begin_layout Standard
+To support coherent task planning,
+ the total risk for a given robot trajectory is computed by fusing physical spatial risk values at each voxel (
+\begin_inset Formula $\Lambda_{spatial}(x,y,z)=(\sum_{r\in R}\omega_{r}\lambda_{r}(x,y,z))$
+\end_inset
+
+) seen from equation (13) and agent-centric risks:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+\Lambda_{total}=\Lambda_{spatial}(x,y,z)+\Lambda_{eff}^{(i)}.
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This hybrid formulation enables the planner to reason not just about the geometric and environmental cost of a path,
+ but also about the internal state of the executing agent.
+ For instance,
+ a terrain segment may be geometrically navigable,
+ but if an agent’s battery or computational load is critical,
+ that path is penalised or avoided when the 
+\begin_inset Formula $\Lambda_{total}$
+\end_inset
+
+is calculated in equation (6).
+\end_layout
+
+\begin_layout Section
+Simulations
+\end_layout
+
+\begin_layout Subsection
+Mapping Environmental OctoMap Variables
+\end_layout
+
+\begin_layout Standard
+For the Lambda Field integrations to work the Octomaps must be able to assign additional variables other than occupancy to the environment that the respective time-of-flight sensors detect.
+ This can be assessed with a hardware experiment,
+ testing the abilities of the OctoMap library [] in tandem with a LIVOX MID-360 3D LiDAR.
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment center
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+LIVOX MID-360 3D LiDAR point cloud data of the lab
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The recorded LiDAR scanned the lab space can be passed to a Gazebo simulation that transforms the point cloud data into an OctoMap.
+ To examine if sensors can inject additional variables into the OctoMap,
+ a simulated injection variable can be randomly assigned to one of the voxels inside the map,
+ and can be highlighted with a different colour 
+\begin_inset Quotes bld
+\end_inset
+
+cube
+\begin_inset Quotes brd
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment center
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+OctoMap transform of the LiDAR point cloud data,
+ with the injected additional sensor variable from the environment
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Heterogeneous Fleet 2D Simulation
+\end_layout
+
+\begin_layout Standard
+To validate the Lambda Field decision making framework in a mission,
+ the concept was constructed and analysed as a 2D python simulation,
+ deploying a full heterogeneous robot fleet encompassing four locomotion-types:
+ A quadruped ,
+ a drone,
+ a submersible/surface robot and wheel driven rover.
+\end_layout
+
+\begin_layout Standard
+The grid mimics a top down view of a real-world urban-rural hybrid environment.
+ Each cell in the environmental grid will include an Bayesian occupancy along with other variables such as temperature,
+ radiation and the presence of terrains such as water and stair cases which would be only accessible to specific locomotion types.
+ Each agent will occupy one cell and start in unique locations.
+ Additionally the types of terrain will be randomised each time the map is loaded into the grid to make each trial simulation is different.
+ The will explore the environment using the D* Lite algorithm and will explore the grid to reveal cells in all cardinal and diagonal directions (illuminating a 3*3 square for the shared map).
+ The decision making of the fleet will fall to a auction based task allocation based on the risk function of the lambda field integral of the area,
+ such that suitable locomotion envelopes will investigate zones of the grid that would be most appropriate.
+ Furthermore to accurately assess the use of the 2D simulation efficiency based risks such as battery depletion will be included for each agent.
+\end_layout
+
+\begin_layout Standard
+EXPAND
+\end_layout
+
+\begin_layout Subsection
+Summary
+\end_layout
+
+\begin_layout Standard
+The framework was compared to a heterogeneous robot fleet that just randomly explored with D* Lite.
+ The graph shows twenty iterations of both algorithm's performance based on how many timesteps were needed to explore the entire map and how much battery life remaining at the end of the simulation.
+\end_layout
+
+\begin_layout Section
+Demonstrations
+\end_layout
+
+\begin_layout Standard
+Following the final goal of this project,
+ it is important to deploy the robot fleet in live real-world demonstrations to prove the framework can work outside of a simulation.
+ When dealing with a fleet of heterogeneous locomotion-diverse robots there are many sub-systems that go into a deployment for a real-world mission;
+ thus it is correct practice to individually test each sub-system into the fleet through experiments to evaluate the problems at each stage integration and validate performance.
+ Therefore,
+ this work undertook a robotic fleet demonstration to inspect the serial communication between robotic agents within a centralised fleet.
+ Communication is the primary method of coordination for the agents inside the fleet during SAR mission and without it they would unable to relay OctoMap information,
+ traversability metrics and task allocation.
+ In the demonstration three autonomous agents were deployed into an open world airbase in Wales;
+ Two quadrotor drones and one rover were deployed with autonomous navigation.
+ The goal of the experiment was to achieve GPS tracking between agents,
+ such that each robot could pass it's own GPS coordinates through a ground station to the rest of the fleet and to converge the robots into a convoy essentially following the longitude and latitude coordinates of the agent vertically above it.
+ The altitude of the drones were set at 40 metres and 20 metres to avoid mid-air collisions,
+ while the rover was on the ground floor (0 metres).
+ Altitude was set amongst all robots and altitude control was ignored.
+ 
+\end_layout
+
+\begin_layout Subsection
+Experimental Setup
+\end_layout
+
+\begin_layout Standard
+The robots were fabricated with components that enable the open source autopilot system,
+ ArduPilot,
+ which utilises MAVLink Protocols and the Mission Planner GSC.
+ Each robot in the fleet had a flight controller (for the ArduPilot firmware),
+ a compass (for GPS),
+ an inertial measurement unit (IMU),
+ a radio transmitter and receiver (to enable manual control with a hand held transmitter) and a Wi-Fi transmitter/receiver (for autonomous mission planning).
+ The aerial quadrotors also carried altitude sensors,
+ while the rover was installed with a Real Time Kinematic (RTK) unit to enhance the accuracy of positioning data from GPS as it was subjected to large force harmonics when driving across rough terrain.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment center
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename Pictures/pasted2.png
+	scale 31
+
+\end_inset
+
+
+\begin_inset Graphics
+	filename pasted2.png
+	scale 10
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Mission Planning
+\end_layout
+
+\begin_layout Standard
+During autonomous deployment each agent was connected to the central GSC computer All robot IP addresses were allocated as threads in the Mission Planner [],
+ allowing the system to pull the latitude,
+ longitude coordinates from each vehicle and transmit the position as a floating path following point to other agents.
+ Additionally each robot had a safety operator to ensure that the autonomous mission planner could be overridden to manual control at all times.
+ The missions were originally simulated in Mission Planner to ensure agent stability and functionality as well as potentially diagnosing any fatal mission errors.
+ The mission pipework involved arming and taking off each agent individually and ensuring stable flight and unique altitudes,
+ before sharing GPS coordinates and passing way-points to following agents.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment center
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename Pictures/pasted1.png
+	scale 30
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Summary
+\end_layout
+
+\begin_layout Standard
+Initial simulation and physical testing showed that the system could handle a drone and a rover working together and that the fleet could pass coordinates through serial communication.
+ The first demonstration highlighted key errors within the system,
+ primarily communication latency and network interruptions.
+ Firewall restrictions and out of date MAVLink software disable test flights due to the compromised GSC connection.
+ Being aware of these dilemmas is invaluable experience for future real-world deployments as learning system debugging and consistent hot-fixing of deployed machines creates a foundation for the end of research deployment of a full fleet with the unified framework.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment center
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename Pictures/pasted8.png
+	scale 30
+	BoundingBox 0bp 200bp 828bp 1630bp
+	clip
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The final experiment,
+ the robot fleet expanded from two agents to three including a drone at a higher altitude as the main convoy leader and was a success,
+ however the speed of transmission between each message was reduced due to a packet loss and network dropout in agents.
+ The issue came from weak internet connection,
+ low quality transmitters and receivers that were in sub-optimal locations onboard the vehicles and aircraft.
+ These complications have solutions that can be fully implemented and resolved in future experimental deployments.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment center
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename Pictures/pasted5.png
+	scale 30
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment center
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename Pictures/pasted6.png
+	scale 30
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment center
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename Pictures/pasted7.png
+	scale 30
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment center
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename Pictures/pasted3.png
+	scale 40
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \end_body

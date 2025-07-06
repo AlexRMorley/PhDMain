@@ -130,15 +130,228 @@ Conclusion
 \end_layout
 
 \begin_layout Section
-Introduction
+Project Plan
+\end_layout
+
+\begin_layout Standard
+This section outlines the intended research goals and deliverables and reserach focuses for the remaining three years of this research project including academic contributions,
+ publication opportunities and targeted conferences.
+\end_layout
+
+\begin_layout Subsection
+Year 1:
+ Core Risk Representation and Single-Agent Testing (Now – September 2025)
+\end_layout
+
+\begin_layout Standard
+The primary focus of the first year has been the formulation of a unified risk representation framework that combines traversability-based and efficiency-based metrics into a single computational structure.
+ Drawing on methods such as lambda fields,
+ extended cost maps,
+ and voxel-based overlays,
+ the framework integrates environmental hazards (e.g.,
+ terrain difficulty,
+ slope,
+ rubble) with internal system limitations (e.g.,
+ battery depletion,
+ communication reliability).
+\end_layout
+
+\begin_layout Standard
+Initial work has involved validating these concepts through simulated environments,
+ beginning with static maps and single-agent trials.
+ A wheeled unmanned ground vehicle (UGV) was used as a baseline platform for testing.
+ Environments included representative risk factors such as muddy or inclined surfaces,
+ and signal dropout zones,
+ emulating real-world operational challenges.
+ Complementary to this,
+ battery and communication risk models have been incorporated using terrain-dependent energy expenditure functions and probabilistic dropout zones to simulate degraded communications.
+\end_layout
+
+\begin_layout Standard
+The culmination of this phase will be the development of a 2D simulation-based proof-of-concept to demonstrate the viability of the risk-aware planning approach.
+ The intended outcome is an initial publication that formalises the theoretical framework,
+ simulation environment,
+ and empirical results for single-agent risk-aware navigation in static,
+ but varied,
+ environments.
 \end_layout
 
 \begin_layout Standard
 
+\series bold
+ICRA 2026 ( 15th September 2025)
+\series default
+ – Experimental validation of the lambda field fleet coordination algorithm that represents physical terrain obstructions that would impede a robot fleet as a summed probabilistic traversability risk.
+ Presenting both traversability-based and efficiency based risks with multiple locomotion agents.
+ 
+\end_layout
+
+\begin_layout Enumerate
+Extending the proposed framework to a 3D voxel space environment.
+\end_layout
+
+\begin_layout Enumerate
+Set-up of a full simulation using ROS2 and Issac Sim for two heterogeneous robot systems of differing locomotion with static obstacles.
+\end_layout
+
+\begin_layout Enumerate
+Consider non-physical environmental factors such as temperature,
+ humidity and radiation in the probabilistic risk model.
+\end_layout
+
+\begin_layout Subsection
+Year 2:
+ Multi-Agent Coordination and Specialisation (September 2025 – September 2026)
+\end_layout
+
+\begin_layout Standard
+Building on the single-agent foundation,
+ the second year will introduce multiple agents into the simulation framework.
+ Heterogeneous teams composed of UAVs,
+ UGVs,
+ UUVs,
+ and quadrupedal robots will be simulated and assigned roles based on their respective capabilities.
+ The central goal is to implement dynamic task allocation informed by both environmental risks and platform-specific performance constraints.
+\end_layout
+
+\begin_layout Standard
+A comparative analysis between baseline assignment strategies (such as greedy or round-robin algorithms) and the proposed risk-aware allocation methods will be conducted.
+ This will assess mission performance,
+ resource use,
+ and overall robustness.
+ Additionally,
+ significant effort will be invested in developing and testing inter-agent mapping strategies,
+ such as voxel-based map fusion (e.g.,
+ OctoMap) and distributed data exchange through relay agents or direct encounters.
+\end_layout
+
+\begin_layout Standard
+The anticipated deliverable from this phase will be a second publication,
+ targeting the introduction and evaluation of fleet-level planning algorithms that use risk-informed task assignment and communication-aware strategies.
+ The simulation environment will be expanded to 3D voxel spaces,
+ providing a closer approximation to real-world environments and enabling more sophisticated planning dynamics.
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+IROS 2026 ( March 2026)
+\series default
+ – Experimental validation of the lambda field algorithm with a multi-locomotion robot fleet alongside a decision making and resource allocating algorithm to finalise the framework.
+ Presenting the capabilities of the framework in a heterogeneous fleet in SAR simulation.
+\end_layout
+
+\begin_layout Enumerate
+Extending the framework to include aquatic and aerial traversability risks.
+\end_layout
+
+\begin_layout Enumerate
+Demonstrate the potential of OctoMap merging in fleets with high density data transmission.
+\end_layout
+
+\begin_layout Subsection
+Year 3:
+ Dynamic Environments and Realistic Simulation (September 2026 – September 2027)
+\end_layout
+
+\begin_layout Standard
+The final year of technical development will focus on introducing dynamic and time-varying risk factors into the simulation environment.
+ Simulated phenomena such as flooding,
+ shifting debris,
+ and environmental decay will be incorporated into risk maps that evolve in real-time.
+ These dynamic conditions will challenge the planning framework to adaptively reallocate tasks,
+ respond to agent failure,
+ and optimise fleet behaviour under uncertainty.
+ Whilst considering predictive planning and risk extrapolation from known features in the environment.
+\end_layout
+
+\begin_layout Standard
+A major emphasis will be placed on global and local replanning algorithms that respond to operational disruptions with minimal latency.
+ The comparative effectiveness of centralised versus decentralised decision architectures will be explored through controlled experiments.
+\end_layout
+
+\begin_layout Standard
+Alongside the expanded simulations,
+ initial real-world experiments will be conducted to validate key components of the framework.
+ These trials will use available robotic platforms for field-testing traversability and battery-aware navigation strategies.
+ These experiments will provide valuable calibration data for simulation models and demonstrate the real-world feasibility of the proposed framework.
+\end_layout
+
+\begin_layout Standard
+A final publication will be prepared,
+ presenting a comprehensive evaluation of the system’s capabilities in realistic,
+ high-fidelity simulations and preliminary field deployments.
+ This work will synthesise the findings from all three years into a journal paper,
+ establishing a holistic understanding of the risk-aware planning approach for autonomous robot fleets.
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+ICRA 2027 ( September 2026)
+\series default
+ – Simulated and real world experimental validation for the lambda field framework,
+ with dynamic obstacle considerations.
+ Portray the potential of the framework in real world deployments in in urban,
+ rural,
+ and hybrid disaster scenarios.
+\end_layout
+
+\begin_layout Enumerate
+Comparison between a centralised and decentralised robot fleet system,
+ presenting the benefits and negatives of each,
+ to find the most suitable framework for SAR deployments
+\end_layout
+
+\begin_layout Enumerate
+Demonstrate the deployment of a real-world heterogeneous robot fleet of at least two unique locomotion types.
+\end_layout
+
+\begin_layout Subsection
+Year 4:
+ Final Integration and Dissemination (September 2027 – September 2028)
+\end_layout
+
+\begin_layout Standard
+The culmination of this research will be a large-scale simulation of a heterogeneous robot fleet executing complex tasks in a dynamically evolving environment.
+ Using platforms such as ROS2 with Isaac Sim the complete system will be tested for mission success rates,
+ energy consumption,
+ fault tolerance,
+ and inter-agent cooperation.
+\end_layout
+
+\begin_layout Standard
+Conferences,
+ workshops,
+ and journals focusing on robotics,
+ AI planning,
+ and autonomous systems will serve as venues for disseminating results.
+ Each year of the project will aim to contribute one significant publication that encapsulates the core developments and evaluations of that phase.
+ These publications will also provide a foundation for the final thesis,
+ ensuring that each technical contribution is supported by peer-reviewed validation.
+ Oversea scholarships and fellowships will be engaged with during the thesis;
+ serving as real world deployment and demonstrations for consolidating knowledge and expanding the sample size of test environments.
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+PhD Thesis (September 2028)
+\series default
+ 
 \end_layout
 
 \begin_layout Section
-Contributions
+Summary
+\end_layout
+
+\begin_layout Standard
+The phased structure of this research ensures both theoretical rigour and practical relevance.
+ By advancing from basic single-agent simulation to full-fleet deployment in simulated and physical settings,
+ the project is designed to produce a generalisable and robust approach to risk-aware planning in heterogeneous robot teams.
+ The resulting contributions are expected to address key gaps in autonomous navigation under uncertainty and help pave the way for future robotic systems capable of operating safely and efficiently in real-world disaster response,
+ exploration,
+ and infrastructure monitoring scenarios.
 \end_layout
 
 \end_body

@@ -134,7 +134,7 @@ Traversability Definitions
 \end_layout
 
 \begin_layout Standard
-Traversability is defined as the ability of a robot or autonomous vehicle to navigate across or through a section of given environment without sustaining damage [...].
+Traversability is defined as the ability of a robot or autonomous vehicle to navigate across or through a section of given environment without sustaining damage [14].
  The probabilistic risk model presented in this work is a sum of all environmental hazards that would effect the risk of a robot successfully traversing the environment.
  Each hazard is given a term in the summation and is defined as a traversability metric.
 \end_layout
@@ -1021,7 +1021,7 @@ Low
 \begin_layout Plain Layout
 
 \size footnotesize
-Fog?
+Fog
 \end_layout
 
 \end_inset
@@ -2281,9 +2281,7 @@ Delays in decision making and path planning
 \begin_inset Text
 
 \begin_layout Plain Layout
-
-\size footnotesize
-Aquatic
+All
 \end_layout
 
 \end_inset
@@ -2292,9 +2290,7 @@ Aquatic
 \begin_inset Text
 
 \begin_layout Plain Layout
-
-\size footnotesize
-High
+Medium
 \end_layout
 
 \end_inset
@@ -2305,7 +2301,7 @@ High
 \begin_inset Text
 
 \begin_layout Plain Layout
-Sensor Degration
+Sensor Degradation
 \end_layout
 
 \end_inset
@@ -2325,31 +2321,79 @@ Strong Underwater displacement
 \begin_inset Text
 
 \begin_layout Plain Layout
+All
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Low
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Power Consumption Rate
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
 
 \size footnotesize
-Aquatic
+High rate of energy use during certain times during robot operation
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+All
 \end_layout
 
 \end_inset
 </cell>
 <cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Medium
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Navigation Drift
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
 \begin_inset Text
 
 \begin_layout Plain Layout
 
 \size footnotesize
-High
-\end_layout
-
-\end_inset
-</cell>
-</row>
-<row>
-<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-
+Localisation,
+ mapping and planning inaccuracies
 \end_layout
 
 \end_inset
@@ -2358,16 +2402,7 @@ High
 \begin_inset Text
 
 \begin_layout Plain Layout
-
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-
+All
 \end_layout
 
 \end_inset
@@ -2376,45 +2411,7 @@ High
 \begin_inset Text
 
 \begin_layout Plain Layout
-
-\end_layout
-
-\end_inset
-</cell>
-</row>
-<row>
-<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-
+Medium
 \end_layout
 
 \end_inset
@@ -2425,7 +2422,7 @@ High
 \begin_inset Text
 
 \begin_layout Plain Layout
-
+Network Bandwidth 
 \end_layout
 
 \end_inset
@@ -2435,6 +2432,8 @@ High
 
 \begin_layout Plain Layout
 
+\size footnotesize
+Delayed map and path planning updates
 \end_layout
 
 \end_inset
@@ -2443,7 +2442,7 @@ High
 \begin_inset Text
 
 \begin_layout Plain Layout
-
+All
 \end_layout
 
 \end_inset
@@ -2452,7 +2451,7 @@ High
 \begin_inset Text
 
 \begin_layout Plain Layout
-
+Low
 \end_layout
 
 \end_inset
@@ -2469,7 +2468,7 @@ High
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
-Table showing Underwater Hazards as potential Traversability Metrics
+Table showing Efficiency-based Risk Metrics
 \end_layout
 
 \end_inset
@@ -2487,173 +2486,113 @@ Task Definition
 \end_layout
 
 \begin_layout Standard
-Corners for wind.
+The objective of this thesis is narrowly focused:
+ to develop and evaluate a unified 
+\begin_inset Formula $\lambda$
+\end_inset
+
+-field framework that (i) embeds both traversability-based and efficiency-based risks in a 3-D voxel map and (ii) exploits that representation for map fusion and high-level task allocation within a heterogeneous robot fleet.
+ To preserve clarity and depth in this core contribution,
+ several well-studied subsystems are declared out of scope and will be treated only through abstracted interfaces:
+\end_layout
+
+\begin_layout Subsection
+Low-level locomotion and flight control.
 \end_layout
 
 \begin_layout Standard
-Using Octomaps for the path planning and navigation for each agent in the fleet.
- Utilise the basics of lambda field to work out the traversability risks of voxel based on how likely the robot loses all kinetic energy (stops moving).
- The risks can be calculated for each discretised voxel cell based off the octomap information stored at each voxel such as temperature,
- radiation and wind.
+Detailed gait synthesis for legged robots,
+ rotor dynamics for aerial vehicles,
+ and thruster control for underwater platforms are not revisited.
+ Each agent is modelled as a holonomic point mass whose motion is limited only by simple kinematic bounds (maximum speed,
+ slope tolerance,
+ climb rate).
+ These bounds enter the framework through locomotion-specific weight factors in the 
+\begin_inset Formula $\lambda$
+\end_inset
+
+-field,
+ but no internal controller is designed.
+\end_layout
+
+\begin_layout Subsection
+On-board state estimation and SLAM back-ends.
 \end_layout
 
 \begin_layout Standard
-First consider a 2D case,
- for a positive scalar field 
-\begin_inset Formula $\lambda(x)$
-\end_inset
+Visual-inertial odometry,
+ Doppler velocity logs,
+ and other estimation pipelines vary widely across platforms and could obscure the main argument.
+ In simulation we assume drift-free odometry;
+ when desirable,
+ bounded Gaussian noise is injected to emulate localisation uncertainty.
+ The emphasis remains on how risk maps influence decision-making,
+ not on how robot poses are derived.
+\end_layout
 
-,
- 
-\begin_inset Formula $x\in\mathbb{R}^{2}$
-\end_inset
-
-the probability to encounter at least one break down in a path 
-\begin_inset Formula $P\subset\mathbb{R}^{2}$
-\end_inset
-
-is
+\begin_layout Subsection
+Communication protocol engineering.
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula 
-\[
-p(break|P)=1-exp(-\intop_{P}\lambda(x)dx)
-\]
+Channel-level issues such as modulation,
+ bandwidth management,
+ latency,
+ and acoustic packet loss are outside the present scope.
+ Connectivity is abstracted as a binary or probabilistic variable that feeds the efficiency-risk component λ_C;
+ no bespoke networking stack is proposed.
+\end_layout
 
-\end_inset
-
-
+\begin_layout Subsection
+Fine-grained energy management.
 \end_layout
 
 \begin_layout Standard
-It is impossible to both compute and store a field 
-\begin_inset Formula $\lambda(x)$
-\end_inset
+Hardware-level power scheduling (CPU throttling,
+ sensor duty cycling) requires platform-specific models.
+ Here battery depletion is approximated by a terrain-conditioned drain rate aggregated into λ_B,
+ sufficient for strategic planning but not for component-level optimisation.
+\end_layout
 
-.
- Hence the field must be discretised similar to a Bayesian occupancy grid.
- Given the cells are small enough,
- a path P crossing cells in the array 
-\begin_inset Formula $C=\{c_{0},\ldots,c_{N}\}$
-\end_inset
-
-,
- where each cell has an area of A and is associated by a calculated 
-\begin_inset Formula $\lambda_{i}$
-\end_inset
-
-
+\begin_layout Subsection
+Reactive inter-robot collision avoidance.
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula 
-\[
-p(break|P)\approx1-exp(-\Lambda(C)),
-\]
+Local avoidance has been addressed extensively in the literature (e.g.,
+ ORCA,
+ reciprocal velocity obstacles).
+ We assume that once way-points are issued,
+ standard reflexive schemes ensure short-range safety;
+ the high-level planner merely avoids allocating overlapping target volumes.
+\end_layout
 
-\end_inset
-
-
+\begin_layout Subsection
+Multimodal perception fusion.
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula 
-\[
-\Lambda(C)=A\sum_{c_{i}\in C}\lambda_{i}
-\]
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-Moving to the 3d dimensional case required 
-\end_layout
-
-\begin_layout Standard
-\begin_inset Formula $\Lambda(x,y,z)\rightarrow$
-\end_inset
-
- lambda field value at each voxel.
-\end_layout
-
-\begin_layout Standard
-\begin_inset Formula $C(i,j,k)\rightarrow$
-\end_inset
-
- Chunk at grid index 
-\begin_inset Formula $(i,j,k)$
-\end_inset
-
- where 
-\begin_inset Formula $N=16^{3}$
-\end_inset
-
-.
-\end_layout
-
-\begin_layout Standard
-\begin_inset Formula $\lambda_{T},\lambda_{R},\lambda_{W}\rightarrow$
-\end_inset
-
-Risk components for temperature,
- radiation,
- wind pressure (generalized as different risk factors).
-\end_layout
-
-\begin_layout Standard
-\begin_inset Formula $E[\Lambda_{c}]\rightarrow$
-\end_inset
-
-Expected risk (mean lambda) over the chunk.
-\end_layout
-
-\begin_layout Standard
-Compute the average traversability risk of each chunk.
-\end_layout
-
-\begin_layout Standard
-\begin_inset Formula 
-\[
-E[\Lambda_{c}]=\frac{1}{N}\sum_{x,y,z\in C(i,j,k)}\Lambda(x,y,z)
-\]
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-Upgrading to a multi-modal risk aggregation
-\end_layout
-
-\begin_layout Standard
-\begin_inset Formula 
-\[
-\Lambda_{C}(i,j,k)=\frac{1}{N}\sum_{x,y,z\in C(i,j,k)}(\lambda_{T}(x,y,z)+\lambda_{R}(x,y,z)+\lambda_{W}(x,y,z)
-\]
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-Include variable weights for different robots
-\begin_inset Formula 
-\[
-\Lambda_{C}(i,j,k)=\frac{1}{N}\sum_{x,y,z\in C(i,j,k)}(\omega_{T}\lambda_{T}(x,y,z)+\omega_{R}\lambda_{R}(x,y,z)+\omega_{W}\lambda_{W}(x,y,z)
-\]
-
-\end_inset
-
-
+Raw sensor integration (RGB-D,
+ thermal,
+ radar) is not re-implemented.
+ Individual robots are assumed to provide locally consistent OctoMaps generated by existing SLAM packages;
+ our contribution begins at the stage of octree alignment and global fusion.
 \end_layout
 
 \begin_layout Section
 Problem Statement
+\end_layout
+
+\begin_layout Standard
+Given an initially unknown three-dimensional environment,
+ estimate a 
+\begin_inset Formula $\lambda$
+\end_inset
+
+-field that quantifies,
+ for every voxel,
+ the compounded likelihood of mission-critical failure (physical or efficiency-related).
+ Use this field both to merge local OctoMaps into a coherent global model and to assign way-points or tasks to heterogeneous robots so that the expected cumulative risk of the mission is minimised.
 \end_layout
 
 \begin_layout Standard

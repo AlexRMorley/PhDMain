@@ -134,12 +134,12 @@ Introduction
 \end_layout
 
 \begin_layout Standard
-To develop a framework,
- the current field of heterogeneous multi-robotic systems needs to be understood to ensure a significant impact in the literature.
- This section of the report will begin with a brief overview of Multi-robot SAR and the state-of-the-art systems that are being deployed.
+To develop a framework in heterogeneous multi-robotic systems,
+ the literature needs to be acknowledged and understood to ensure a significant impact is made in the current field.
  Given the nature of multi-robotics,
  many sub-systems need to be addressed and considered to fabricate a suitable framework.
- The following sections will briefly summarise the current methods and challenges in multi-robotics that are considered in the synchronous integration of all systems.
+ The following sections will briefly summarise the current state-of-the-art methods and challenges in multi-robotics considered in the synchronous integration of all systems.
+ 
 \end_layout
 
 \begin_layout Section
@@ -149,63 +149,112 @@ Disaster Robotics:
 
 \begin_layout Standard
 In disaster robotics,
- recent work by Peña Queralta et al.
- (2020) offers a comprehensive review of how multi-robot systems are currently supporting SAR operations.
- Their survey highlights collaborative deployments involving aerial,
+ the review by Peña Queralta et al.
+ [7] provides a detailed overview of how multi-robot systems support search and rescue operations.
+ Their work highlights deployments involving aerial,
  ground,
  surface,
- and underwater robots across various environments;
- urban,
+ and underwater robots across various environments,
+ including urban,
  maritime,
- wilderness,
- and subterranean.
- While these projects demonstrate the benefits of using heterogeneous teams,
- they primarily focus on combinations of two locomotion types,
- such as UAVs paired with UGVs or Unmanned Surface Vehicles (USVs)/ Unmanned Underwater Vehicles (UUV).
- To date,
- there is no documented instance of an operational SAR system that incorporates all four major locomotion types in a coordinated fleet,
- especially with the more complicated locomotion method of a legged walker vehicle,
- such as a bipedal robot or quadruped.
- 
+ rural wilderness,
+ and subterranean settings.
+ Although these projects showcase the advantages of using heterogeneous teams,
+ most are limited to combinations of only two types of locomotion.
+ Currently,
+ no documented systems integrate all four locomotion types into a single coordinated fleet,
+ particularly not one that includes complex platforms such as bipedal or quadrupedal walking robots.
 \end_layout
 
 \begin_layout Standard
-Despite strong advances in system design and coordination,
- the current state of SAR robotics often relies on centralized decision-making and predefined task allocation.
+While substantial progress has been made in system design and coordination,
+ most SAR robotics platforms still rely on centralised control and predefined task allocation.
  Projects like ICARUS,
  NIFTi,
- and TRADR have shown effective collaboration between aerial and ground units,
- and the DARPA SubT Challenge has pushed forward multi-domain autonomy.
+ and TRADR [10,11,12] have demonstrated successful collaboration between ground and aerial units.
+ The DARPA Subterranean Challenge has further advanced autonomy across multiple domains.
  However,
- these efforts are still limited in scope and often constrained by the operating environments or hardware capabilities.
+ these systems are often still limited in scope and constrained by the risks associated with the agents' locomotion type during operation.
+ The first class of these risks are traversability-based risks that lie within the operational environment.
+ Efficiency-based risks include communication reliability and the capabilities of the robot's hardware platforms.
+\end_layout
+
+\begin_layout Standard
+Recent research from Solmaz et al.
+ highlights these limitations and focuses on resolving these issues when considering the use of autonomous robots in exploring underground SAR scenarios.
+ Perception,
+ communication,
+ and locomotion were identified as three significant limiting factors during SAR,
+ which became especially challenging in situations involving smoke,
+ fire,
+ and irregular terrain [13].
+ Using the quadrupedal Unitree Go1 robot as a test platform,
+ the authors explore how reinforcement learning and sensor fusion (combining LiDAR,
+ thermal imaging,
+ and proprioceptive data) can improve navigation and victim detection in environments where GPS is unavailable.
+ A key contribution of their work is the emphasis on autonomous relay communication and intelligent repeater placement,
+ learning from previous failures from the DARPA SubT Challenge.
+ Their system architecture was developed by adopting the vision of the ARCHIMEDES project [14],
+ ensuring the functionality of electronic components throughout their lifetime and illustrates the potential for AI-driven robotic platforms to operate independently under challenging conditions where traditional tools might fail.
+\end_layout
+
+\begin_layout Standard
+Complementing this,
+ a meta-study on the field reliability of unmanned ground vehicles used in urban search and rescue and military operations sheds light on another critical challenge.
+ Analysing ten field deployments across fifteen robot models,
+ the study presents a breakdown of common failure types,
+ including mechanical and operator-related errors.
+ Deriving the need for improved system durability.
+ Most failures in the field were repairable,
+ with an average time between each discontinued test being six to twenty hours.
+ The lack of resilient platforms reinforces the premise that the development of integrated,
+ adaptable robot fleets capable of functioning together in significant and unpredictable disaster zones is required.
+ This development would also provide relief from close engagement with end users during the design process,
+ as it offers a more modular solution.[15]
+\end_layout
+
+\begin_layout Standard
+In a related effort,
+ another study presents an autonomous quadrotor designed for search and rescue operations in indoor and outdoor environments without relying on GPS or external computation.
+ The UAV could adapt to changing conditions and maintain accurate localisation with onboard processing for sensor fusion of LiDAR data and stereo vision odometry.
  
 \end_layout
 
 \begin_layout Standard
-This meta-study examines the causes and characteristics of field failures in unmanned ground vehicles (UGVs) used in urban search and rescue (USAR) and military operations.
- Drawing on ten field studies covering 15 UGV models,
- the paper introduces a comprehensive taxonomy of failure types—
-spanning physical faults (e.g.,
- control systems,
- effectors) and human factors—
-and finds that most failures are terminal but field-repairable,
- with mean time between failures ranging from 6 to 20 hours.
- The analysis highlights the need for improved reliability through robust design,
- realistic field testing,
- and closer integration of end-user feedback in development.This gap highlights a clear opportunity for research into fully integrated,
- domain-spanning robot fleets capable of operating cohesively in complex,
- multi-modal disaster zones.
- https://ieeexplore.ieee.org/document/1435486
+The study demonstrated the use of fully autonomous aerial robots for SAR missions.
+ They proved the potential by conducting trails in confined spaces,
+ including transitions from indoors to an outside environment.
+ Illustrating the efficiency in complex real-world scenarios [16].
+ They instead focused on improving the capabilities of the onboard computation of the drone.
+ Their future work concentrated on increasing the robot's limited resources by reducing the weight of components.
+ By integrating multiple locomotion types,
+ such fleets can distribute computational tasks to larger,
+ more capable ground platforms while allowing other agents to focus on mission-critical interactions with victims or navigating more challenging terrain,
+ thereby delegating roles based on the most appropriate platforms.
 \end_layout
 
 \begin_layout Standard
-This study presents a fully autonomous quadrotor system for urban search and rescue (USAR),
- capable of navigating both indoor and outdoor environments without GPS or external computation.
- By combining laser and stereo vision odometry with onboard processing,
- the UAV can adapt to changing conditions and maintain accurate localization.
- The system’s effectiveness was demonstrated through autonomous flight trials in constrained environments,
- including indoor-to-outdoor transitions.
- https://ieeexplore.ieee.org/document/6290694
+The DigiForest research project,
+ along with the referenced work by Hu et al.,
+ underscores the critical role of platform-specific traversability estimation in unstructured environments.
+ DigiForest demonstrates how wheeled and legged robots require distinct terrain analysis and planning strategies,
+ validated through extensive deployments in European forests.
+ However,
+ these efforts largely omit real-world conditions involving dynamic traversability risks such as weather-induced flooding,
+ mud,
+ and unstable surfaces.
+ Hu et al.
+ contribute a motion-primitive planner tailored to centre-articulated vehicles,
+ emphasizing the importance of accurate kinematic modelling in constrained environments [17,
+ 18].
+ Collectively,
+ these works highlight the need for a unified,
+ risk-aware representation of traversability capable of supporting coordinated planning across heterogeneous robotic fleets,
+ as none of this work considers the alternative traversability types in mission planning.
+ Only the traversability hybrid A* algorithm of UGVs is referenced in a limited capacity [19],
+ excluding other locomotion types in real-world environments,
+ therefore a paradigm shift in mission planning is needed.
+ 
 \end_layout
 
 \begin_layout Section
@@ -213,8 +262,8 @@ Algorithms for Risk assessment
 \end_layout
 
 \begin_layout Standard
-Defining the term traversability as the ability for a robot or autonomous vehicle to navigate through an environment safely [define traverse],
- clarify the need for traversability risk assessments in the framework.
+By defining the term traversability as the ability for a robot or autonomous vehicle to navigate through an environment safely without damaging the vehicle [20];
+ It clarifies the need for mission planners to contemplate traversability risk assessments in their frameworks to ensure cautious navigation.
  This work will encompass all variety of risks in the taxonomy,
  including traversability-based and efficiency-based risk;
  traversability-based is classified as physical elements such as terrain elevation,
@@ -233,32 +282,31 @@ The current characterisation of traversability risks is split into sensor-based 
  Early navigation methods used a concept of instant goals in a globally convergent path planning system where the risk of collision was characterised as the minimum distance to an obstacle from a range finder.
  Many other navigation and model predictive control algorithms generate a restricted path for an autonomous vehicle to follow based on the obstacle representations,
  ensuring a boundary is inaccessible and reducing collisions.
- []
+ [21]
 \end_layout
 
 \begin_layout Standard
 Alternatively,
- the sliding mode control law proposed in [] establishes pre-set distances from the obstacle boundary that are maintained.
- The risk is characterised by the sliding surface,
- not the obstacles (a function of length).
+ the sliding mode control law proposed in [22] establishes pre-set distances from the obstacle boundary that are maintained.
+ Such that the sliding surface characterises the risk,
+ not the obstacles (as a function of length).
 \end_layout
 
 \begin_layout Standard
 Another form of risk definition involves collision ellipsoids,
- which form circles of radius 
-\begin_inset Formula $r$
-\end_inset
-
- around the main robot and other agents,
+ which form circles of radius r around the main robot and other agents,
  limiting the likelihood that the centres of the machines cross into a different ellipsoid.
  This method differs from deterministic path planning by introducing a chance constraint,
  ensuring the probability of agent collision does not exceed an upper bound.
 \end_layout
 
 \begin_layout Standard
-Key terrain parameters have been considered in [],
+Key terrain parameters have been considered in [23],
  using sensors to create cohesion and internal friction angle parameters to estimate a robot traversability risk metric based on terrain shear strength.
- (Expand on)
+ The algorithm simplified the terrain mechanics,
+ and the method,
+ validated through simulation and experimental testing on loose terrain like sand,
+ shows the method had reliable estimates even with noisy inputs.
 \end_layout
 
 \begin_layout Standard
@@ -287,31 +335,32 @@ The map-based characterisation of risks is an approach that uses an environmenta
 \begin_layout Standard
 Other grid-based traversability maps have been used that exclude occupancy probability and focus on the possibility of the robot successfully driving over a terrain feature.
  These maps analyse a 2D probabilistic grid with multiple sensors to acquire more information,
- such as terrain slopes [].
- This was expanded as the authors constructed a traversability map that deployed three fundamental terrain characteristics:
+ such as terrain slopes [24].
+ 
+\end_layout
+
+\begin_layout Standard
+This leads to more practical mapping methods,
+ such as 2.5D Digital Elevation Maps (DEM),
+ which expand on 2D mapping by storing the elevation of a cell instead of occupancy probability.
+ Also known as Cartesian elevation maps,
+ DEM is widely used for modelling and traversability analysis for low obstacles and ground surfaces attaining a risk approximation when the robot moves across the floor-level terrain.
+ However,
+ they do not adequately represent vertical obstacles and multi-level structures,
+ such as bridges and overhangs.
+ This led to the development of multi-level surface (MLS) maps,
+ allowing multiple variables in each cell that could depict multiple surfaces.
+ The previous work was expanded on in [25] as the authors constructed a traversability map that deployed three fundamental terrain characteristics:
  slope,
  curvature,
  and roughness.
 \end_layout
 
 \begin_layout Standard
-More practical mapping methods,
- such as 2.5D Digital Elevation Maps (DEM),
- expand on 2D mapping by storing the elevation of a cell instead of occupancy probability.
- Also known as Cartesian elevation maps,
- DEM is widely used for modelling and traversability analysis.
- However,
- they do not adequately represent vertical obstacles and multi-level structures,
- such as bridges and overhangs.
- This led to the development of multi-level surface (MLS) maps,
- allowing multiple variables in each cell that could depict multiple surfaces.
-\end_layout
-
-\begin_layout Standard
 However,
- voxel-based mapping approaches like the 3D grid and DEMs typically required a large amount of memory and significant assumptions about the corresponding environment,
- and it did not address the difference between free and unknown space.
- Octrees address these limitations by providing a memory-efficient,
+ voxel-based mapping approaches like the 3D grid and DEMs typically require a large amount of memory and significant assumptions about the corresponding environment,
+ and they do not address the difference between free and unknown space.
+ Octrees addresses these limitations by providing a memory-efficient,
  hierarchical 3D occupancy map.
  Since it is hierarchical,
  the tree can be cut at any level to obtain a coarser sub-division if inner nodes are maintained,
@@ -324,19 +373,22 @@ However,
  Unknown areas are implicitly initialised.
  This use of boolean occupancy states allows for a compact representation of the structure,
  such that if all node children have the same state (occupied or free),
- they can be pruned.
+ they can be pruned [26].
 \end_layout
 
 \begin_layout Standard
 The OctoMap framework,
  derived from octrees,
- can be extended to enrich the map with additional terrain information at each voxel,
+ can be extended to enrich the map with additional terrain information at each voxel (traversability variables),
  such as colour and temperature,
  demonstrating the algorithm’s scalability.
- However,
- limited research has been undertaken to merge octomaps for multi-robotics applications due to the complexity and lack of support for global optimisation to fix mapping errors and odometry drift.
+ It has been successfully deployed in robots and drones [27];
+ however,
+ limited research has been undertaken to merge OctoMaps for multi-robotics applications due to the complexity and lack of support for global optimisation to fix mapping errors and odometry drift.
+ Recent work seen by a method to merge OctoMaps is demonstrated by estimating the relative transformation between maps using a modified Iterative Closest Point algorithm that operates directly on the octree structure,
+ aligning corresponding nodes and combining them into a consistent global map while preserving occupancy probabilities [28].
  Alternative mapping techniques such as Ski maps and real-time appearance-based maps (RTABMap) have faster updates and can fix odometry errors with updates,
- at the expense of being less efficient with larger maps.
+ at the expense of being less efficient with larger maps [29].
 \end_layout
 
 \begin_layout Standard
@@ -345,25 +397,26 @@ To more appropriately access risk,
 \begin_inset Formula $\lambda$
 \end_inset
 
- ) of the likelihood that failure will occur in each cell at a given position.
+) of the likelihood that failure will occur in each cell at a given position.
  The risk function can be any risk associated with any risk that would lead to an agent’s termination,
  not just collisions,
  with more complicated extensions,
  presenting a new risk by considering a harmful event as a time to deform the wheel of the robot,
  calculating risk as a maximum potential energy absorbed by said wheel,
- such that each cell is measured by its the likelihood for the robot to traverse across it.
+ such that each cell is measured by its the likelihood for the robot to traverse across it [30].
 \end_layout
 
 \begin_layout Standard
 It is clear from the literature that for a concrete risk assessment of the environment,
  a mixture of sensor-based and map-based risk characterisation is needed to detect potential damage to the vehicle,
  thus inhibiting traversability.
- By fusing both characterisations,
+ By fusing both characterisations with OctoMaps,
  each robot agent will be able to interoperate its environment and be fully self-aware of the environmental risks by considering occupancy maps with other environmental risk attributes.
+ By taking Lambda Field integrals of voxel chunks inside the shared OctoMap,
+ sections of the map can be segregated for suitable robot locomotion types and assist in task allocation.
  Additionally,
  recent work has discussed environments with dynamic and occluded obstacles,
- which are definitive risk factors in the real world.
- (Expand on)
+ which are definitive risk factors in the real world [30.4].
 \end_layout
 
 \begin_layout Standard
@@ -371,11 +424,223 @@ Noteworthy frameworks,
  such as neural networks or machine learning approaches to dynamic traversability mapping,
  provide efficient segmentation of dynamic and static environmental zones.
  Unfortunately,
- the general drawback of neural networks is the dependency of the training data set on what the training step would teach the system.
+ the general drawback of neural networks is the dependency of the training data set on what the training step would teach the system .
+\end_layout
+
+\begin_layout Subsection
+Risk-Based Path Planning
 \end_layout
 
 \begin_layout Standard
-(Potential to extend this section by looking at locomotion-specific risk assessment characterisation)
+Path planning for robots and autonomous mobile vehicles focuses on the map-based risk assessments so that the robot does not collide into obstacles and other physical risks in their environment.
+ Therefore,
+ the risk factor is the main driving component for robot navigation and fleet decision making.
+ Starting with terrestrial mobile robots,
+ traversability risk is assessed along a virtual paths which are superimposed onto metric maps or grids.
+ By tessellating the environment into a grid of cells of a fixed size where inside the cell the field maintains constant,
+ allows the environmental field denoted as 
+\begin_inset Formula $e:\mathbb{R}^{n}\rightarrow\mathbb{R}$
+\end_inset
+
+ to be broken down an appropriately assess the occupation and variables of the field inside the cells [20].
+\end_layout
+
+\begin_layout Standard
+The simplest function measures the occupancy cost of a list of cells in the grid (to form a path or trajectory).
+ Occupancy being a binary classifier allows a reward to be assigned to each cell based on its occupancy status;
+ positive values denoting occupied and negative denoting free space.
+ Comparing the summed rewards of each path (list of cells) allows the robot to match the trajectory with the highest yielded reward to being the safest path to a predetermined goal.
+ When considering the use of Bayesian occupancy grids the risk of traversing a path 
+\begin_inset Formula $P_{|0,i|}$
+\end_inset
+
+ given by a set of i cells is as follows:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+R(P_{|0,i|})=1-\prod_{j=0}^{i}(1-P_{j}),
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where
+\begin_inset Formula $P_{j}$
+\end_inset
+
+ is the probability of occupancy within the 
+\begin_inset Formula $j^{th}$
+\end_inset
+
+ cell.
+ Other work shows the probabilistic definition of risk as the likelihood of the robot finishing the set path or trajectory in the map given as:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+R(P_{|0,i|})=1-\prod_{j=0}^{i}\prod_{k=0}^{r}(1-r_{k}),
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $r_{k}$
+\end_inset
+
+ is the probability an occupied cell 
+\begin_inset Formula $k$
+\end_inset
+
+ to cause failures at position 
+\begin_inset Formula $j$
+\end_inset
+
+ given the history of the robot traversing cells from 
+\begin_inset Formula $0$
+\end_inset
+
+ to 
+\begin_inset Formula $j$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+Loss Functions and Physical Risk Metrics
+\end_layout
+
+\begin_layout Standard
+More appropriate solution were developed,
+ due to limitations of the simple equations incorrectly evaluating the field in which the paths traversed,
+ such as the work of [30.5] which considered the risk of a path to be a measurement of expected loss,
+ forming the loss function 
+\begin_inset Formula $L(x_{v},x_{c})$
+\end_inset
+
+ where 
+\begin_inset Formula $x_{v}$
+\end_inset
+
+ is the vehicle state and 
+\begin_inset Formula $x_{c}$
+\end_inset
+
+ is the cell state:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+R(P)=\sum_{i=0}^{N-1}P_{i}\cdot L(x_{v},x_{c}),
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+defining the risk loss function as the total loss of kinetic energy in the system as the integral over the trajectory.
+ In this formulation,
+ the total risk along a path is expressed as the expected loss,
+ weighted by the probability of encountering hazards in each cell.
+ Since 
+\begin_inset Formula $R$
+\end_inset
+
+ is represented as kinetic energy,
+ it carries physical meaning unlike simpler models based on collision probability,
+ which may yield values in the unbounded range [
+\begin_inset Formula $0,\infty]$
+\end_inset
+
+ and lack a tangible interpretation.
+ However,
+ the function is sensitive to the map’s resolution:
+ as the environment is tessellated into smaller cells,
+ the number of contributing risk elements increases,
+ artificially inflating the total.
+ To compensate,
+ a common workaround involves multiplying each cell’s risk by its area (
+\begin_inset Formula $∆a$
+\end_inset
+
+),
+ normalising the value relative to cell size.
+ While this corrects for scaling,
+ it weakens the original physical interpretation by transforming the risk from a real-world measure,
+ such as force or energy,
+ into a dimensionless quantity.
+ This shift turns the metric into a heuristic that’s more abstract and less directly tied to measurable impacts on the robot,
+ such as energy loss or mechanical wear.
+\end_layout
+
+\begin_layout Standard
+By contrast,
+ the Lambda field framework [30] preserves its physical consistency regardless of map resolution.
+ Instead of summing over discrete cells,
+ it defines risk as a continuous function over space;
+ specifically as the expected value of a failure-related metric integrated across the area the robot has traversed.
+ This approach avoids the distortion caused by varying cell sizes,
+ as the risk remains anchored to physical parameters like failure rate or the energy absorbed by robot components.
+ As a result,
+ the metric remains stable,
+ interpretable,
+ and better suited to applications requiring physically meaningful decisions,
+ such as heterogeneous fleet coordination or real-time navigation through complex terrain.
+ The expected value of a risk function 
+\begin_inset Formula $r(a)$
+\end_inset
+
+ over a path is defined as:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+E[r(X)]=\intop_{p}f(a)r(a)da,
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $a$
+\end_inset
+
+ denotes the area traversed and 
+\begin_inset Formula $f(a)$
+\end_inset
+
+ is the probability distribution across that space.
+\end_layout
+
+\begin_layout Standard
+Although,
+ Lambda fields are not widely used in risk aware path planning due to the complexity of constant integrals.
+ The utilisation of Lambda fields in this novel framework for multi-robot decision making,
+ should allow robotic agents to compare physical risks between heterogeneous locomotion types that are affected differently depending on the environmental setup.
+ Alleviating the complex integrals over every possible path seen in Lambda field path planning algorithms,
+ instead using the high fidelity traversability metric 
+\begin_inset Formula $\lambda$
+\end_inset
+
+ to calculate the integral of zones of the environment to assign suitability weights for different locomotion types;
+ providing accurate real world assessments for robot fleet coordination and task management.
 \end_layout
 
 \begin_layout Subsection
@@ -383,72 +648,111 @@ Efficiency-Based Risk
 \end_layout
 
 \begin_layout Standard
-Beyond the obvious physical risks like rough terrain or obstacles,
- robots also face a range of non-physical challenges that can affect how well they perform.
- These are known as efficiency-based risks.
- While they might not cause a robot to crash or get stuck,
- they can still lead to mission failure by reducing performance,
- causing delays,
- or stopping a task altogether.
+Physical danger is not the only threat that can stop a mission.
+ Robots also fail when they exhaust energy,
+ lose their radio link,
+ overwhelm their computers,
+ or reach mechanical limits.
+ These efficiency based risks rarely damage hardware,
+ yet they still end a task early.
+ A complete planning framework has to predict them and react before they cascade.
+\end_layout
+
+\begin_layout Subsubsection
+Energy Depletion
 \end_layout
 
 \begin_layout Standard
-These kinds of risks are mostly tied to limited onboard resources,
- such as how much battery life a robot has left,
- how well it can process data,
- or whether it can stay in contact with the rest of the team.
- This is especially important in multi-robot systems used for things like search and rescue,
- where there's often no room for error.
- A robot might technically be able to keep moving,
- but if its battery dies,
- it loses signal,
- or its processor gets overloaded,
- it stops being useful or worse,
- it becomes a liability.
+Flight endurance or driving range often limits search and rescue exploration and prunes potential opportunities to find victims.
+ Latif et al.
+ show that careful task allocation can lower fleet wide energy use and extend persistent missions [31].
+ When only aerial agents are available,
+ path planners must also account for the battery cost of travelling back to a base station.
+ A field study with several quad-copters shows exploration plans that maximize the efficiency of exploring and mapping an unknown environment when a robot fleet is stifled with unreliable communication and limited battery life [32],
+ Cesare et al.
+ also considering agent sacrifice for explored area gain,
+ aborting the energy requirements for the UAVs return flights to the base station.
+\end_layout
+
+\begin_layout Subsubsection
+Communication Loss
 \end_layout
 
 \begin_layout Standard
-Some common examples of efficiency-based risks include:
+Disaster areas include subterranean tunnels,
+ collapsed structures,
+ and flooded underpasses where radio signals fade unpredictably,
+ compromising robotic fleets and their respective missions.
+ A recent coordination method maintains network connectivity by directly constraining the Fiedler value (an adopted communication performance metric) of the communication graph during trajectory generation [33].
+ Saboia et al.
+ add resilience by moving relay robots whenever links weaken,
+ retaining coverage during the DARPA SubT Finals [34].
+ Additionally,
+ the contention of decentralised and centralised fleets needs to be examined for each framework.
+ A centralised planner funnels data to a base station (or a supervisory UAV that carries a larger system to handle more computational information) that holds the global map and issues commands.
+ .
+ In a sweep coverage comparison that stepped from fully decentralised to fully centralised control,
+ Jamshidpey et al.
+ [35] found that centralisation delivered faster and more uniform coverage but suffered whenever the radio backbone was stressed:
+ scalability flattened beyond 16 robots and fault-tolerance plunged once more than 25 percent of the ground units were disabled.
+ Decentralised control,
+ by contrast,
+ kept performance consistent under drop-outs and avoided the single point of failure,
+ at the cost of slightly slower area completion,
+ Building on that insight a field result from Tang et al.
+ [36] introduced a decentralised coordination scheme that maintained communication,
+ such that each robot monitors local signal strength and re-positions itself whenever the algebraic-connectivity of the team graph slips below a preset threshold.
+ The large-scale outdoor trials show that the fleet can hold the required link quality without any base station and with no prior map of relay points.
+\end_layout
+
+\begin_layout Subsubsection
+Computation Overload
 \end_layout
 
 \begin_layout Standard
-Battery depletion – The risk of a robot running out of power before finishing its task.
- This becomes more likely with long missions,
- challenging terrain,
- or heavy computing loads.
+High resolution mapping,
+ semantic segmentation,
+ and multi camera fusion often exceed the processor budgets of small ground vehicles and quadrotor drones.
+ This can lead to system latency and individual agents missing vital real-time information and map updates.
+ Sun et al.
+ use deep reinforcement learning to decide when to off-load vision inference to a nearby edge computer,
+ keeping latency under one hundred milliseconds even during peak load,
+ whilst also reducing energy consumption [37].
+ A complementary approach accelerates simultaneous localisation and mapping by fusing raw pose graphs on an edge server,
+ cutting map update latency by thirty nine percent in the RecSLAM system [38].
+\end_layout
+
+\begin_layout Subsubsection
+System Fatigue and Wear
 \end_layout
 
 \begin_layout Standard
-Communication loss – Losing connection with the fleet or base station,
- which is a big problem in places like tunnels or collapsed buildings.
+Extended duty cycles introduce thermal drift,
+ actuator wear,
+ and sensor calibration drift.
+ Although less documented than energy and communication issues,
+ preventative schedulers that reassign tasks once a platform shows early signs of failure improve mean mission success in large teams,
+ as demonstrated by fault recovery experiments on mixed ground fleets [39].
+ The work also highlighted the importance of robot's communicating if they have failed or if their ability to continue the mission is compromised,
+ so that other robots can fill their place and cover critical unexplored sections of the environment.
 \end_layout
 
-\begin_layout Standard
-Computational overload – When the robot has too much data to process in real time,
- which can cause it to make slow or bad decisions.
-\end_layout
-
-\begin_layout Standard
-System fatigue or overuse – When a robot is pushed too hard or scheduled too often,
- leading to wear-and-tear or declining performance.
+\begin_layout Subsubsection
+Mission Planner Integration
 \end_layout
 
 \begin_layout Standard
 To deal with these risks,
- many systems now use predictive models that estimate how much power a robot will need or how likely it is to stay connected.
+ some systems now use predictive models that estimate how much power a robot will need or how likely it is to stay connected.
  For example,
  energy use can be predicted based on past data and terrain analysis,
  while communication dropouts might be predicted from known signal dead zones.
-\end_layout
-
-\begin_layout Standard
-Some approaches use Bayesian inference or Markov models to estimate the chances of a failure happening,
- which can then be used to make smarter decisions about who does what in a robot team.
- These predictions help task planners assign jobs to the robots that are not only capable but also most likely to complete them without running into problems.
-\end_layout
-
-\begin_layout Standard
-More advanced systems even plan for redundancy —
+ They could also switch to a simple reactive obstacle avoidance was expanded upon with a hybrid bio-inspired,
+ computationally lightweight path planner,
+ that used a topological map-based planning strategy for exploration [40].
+ Eliminating the use of continuous metric-path planning by leveraging a graph skeletonisation from occupancy maps and wide-field optic flow analogues for centring,
+ particularly useful in GPS-denied dead zones (subterranean scenarios).
+ More advanced systems even plan for redundancy,
  assigning extra robots to key areas or avoiding risky zones if a robot’s battery is running low.
  In heterogeneous fleets,
  where robots differ in what they can do or how long they last,
@@ -465,14 +769,29 @@ Even though efficiency-based risks are not as visible as physical ones,
  reliable decisions in complex environments.
 \end_layout
 
+\begin_layout Standard
+Through these papers another fragment for safe,
+ heterogeneous robot fleet mission planning emerges from the partial solution of predictive models.
+ Battery drain follows a measurable curve,
+ link strength depends on distance and obstruction,
+ processor queues reveal impending overload,
+ and wear can be forecast from duty cycles.
+ When these signals feed directly into mission allocation,
+ the planner can assign each task to the agent that is both capable and statistically most likely to finish it.
+ Efficiency awareness therefore stands with traversability and physical safety as an equal pillar of reliable multi robot operation and should be included in a novel framework.
+ 
+\end_layout
+
 \begin_layout Subsection
 Risk Quantification
 \end_layout
 
 \begin_layout Standard
-To quantify the risk in the preceding section,
- [] provided the Axiomatic Theory of Risk in Robotics,
- expanding on what constitutes a suitable risk metric.
+Now that the risks have been explained,
+ a method to quantify the risks into a unified framework needs to be discussed.
+ The risks can be quantified,
+ provided the Axiomatic Theory of Risk in Robotics [41],
+ that expands on what constitutes a suitable risk metric.
  The six axioms for risk metrics in robotics are as follows:
 \end_layout
 
@@ -636,10 +955,6 @@ The final axiom is if both
 \end_layout
 
 \begin_layout Standard
-https://link.springer.com/chapter/10.1007/978-3-030-28619-4_10
-\end_layout
-
-\begin_layout Standard
 Quantifying risks in robotics means assigning a numerical value to the uncertainty associated with possible adverse outcomes of a process.
  Substituting the abstract idea of risk for a measurement that could be controllable allows for evaluation algorithms for robot fleets to allocate tasks.
  Given the axioms above,
@@ -649,7 +964,7 @@ Quantifying risks in robotics means assigning a numerical value to the uncertain
 
 ) can be seen as an incoherent risk metric as it does not comply with the law invariance (A6).
  On the contrary,
- the lambda field traversability risk does constitute a coherent metric satisfying all six axioms and the worst-case metric seen in [https://ieeexplore.ieee.org/abstract/document/9683744] as well,
+ the lambda field traversability risk does constitute a coherent metric satisfying all six axioms and the worst-case metric seen in [42] as well,
  leading to the justification of an impactful and physical risk metric that could be extracted from path planning and be injected into a more significant role in decision-making for robotic fleets.
 \end_layout
 
@@ -664,8 +979,8 @@ Cost maps are foundational in mobile robotics,
  collisions,
  or mechanical failure) across different regions.
  A risk-aware cost map might assign higher traversal costs to narrow,
- obstacle-dense zones not just based on geometry but on the probability of mission failure —
- creating a blended metric that guides planning under uncertainty.
+ obstacle-dense zones not just based on geometry but on the probability of mission failure.
+ This creates a blended metric that guides planning under uncertainty.
  When aligned with axioms such as subadditivity and law invariance,
  these models avoid underestimating compound risks across multiple areas or robots.
 \end_layout
@@ -681,24 +996,25 @@ To better inform these cost maps,
  semantic segmentation classifies regions (e.g.,
  “mud,” “concrete,” “debris,” “open water”),
  allowing the risk model to account for terrain type and associated robot vulnerabilities.
- These contextual classes can be linked to empirically measured failure rates —
+ These contextual classes can be linked to empirically measured failure rates;
  for example,
  drones may associate "dense foliage" with signal loss,
  while ground robots may treat "loose gravel" as high-risk for traction.
- Such semantics drive risk metrics that are more task- and platform-specific,
- enabling fine-grained multi-robot decision-making.
-\end_layout
-
-\begin_layout Standard
-Predictive Planning and Risk Extrapolation
+ Such semantics drive risk metrics that are more task and platform specific,
+ enabling fine-grained multi-robot decision-making [43].
+ The works of Westfechtel et al.
+ [44] brings attention to this terrain detection for two UGVs with differing locomotion abilities,
+ a legged and a wheeled robot;
+ The system can segment traversability risk critical zones such as “stairs” with point cloud segmentation to inform the robot's shared map of the traversability requirements.
+ Extrapolating this segmentation technique to Octomaps,
+ the unified framework could share traversability variables to each locomotion-variant agent type in the fleet and distribute the members to appropriate sections of the environment based on their traversability weights that sum to a total risk factor.
 \end_layout
 
 \begin_layout Standard
 Risk quantification also enables predictive planning,
  where robots extrapolate future risk based on current trends and models.
  Instead of planning only for immediate cost minimization,
- agents can use predictive tools —
- like Gaussian process regression or Bayesian forecasting —
+ agents can use predictive tools like Gaussian process regression or Bayesian forecasting;
  to model how the environment may change (e.g.,
  weather conditions,
  pedestrian density,
@@ -720,35 +1036,14 @@ Localisation and Fleet Mapping
 For a robotic fleet to efficiently navigate through an unknown environment,
  the communication between each member and a shared perception of the environment is critical for accurate decision making,
  and individual robot path planning.
- A majority of autonomous mobile robots use simultaneous 
-\end_layout
-
-\begin_layout Standard
-Alternatives to OctoMaps,
- Voxels grids,
- point cloud,
- signed distance fields,
- represents surfaces implicitly,
- Truncated signed distance fields,
- used in 3d reconstruction,
- mesh based mapping uses triangular or polygonal meshes for detailed surface representation,
- elevation mapping,
- stores height data(Ground robots)
-\end_layout
-
-\begin_layout Standard
-__
-\end_layout
-
-\begin_layout Standard
-In multi-robot systems,
+ In multi-robot systems,
  the ability to accurately integrate local maps into a unified global representation is essential for coherent localisation,
  planning,
  and decision-making.
  A significant body of research has explored different strategies for 3D map merging,
  particularly when using octree-based representations like OctoMaps due to their efficiency in storing volumetric data.
  Drwięga et al.
- (2018) introduced a computationally optimised adaptation of the Iterative Closest Point (ICP) algorithm tailored for octomap integration.
+ [45] introduced a computationally optimised adaptation of the Iterative Closest Point (ICP) algorithm tailored for OctoMap integration.
  Their method bypasses the need for full point cloud reconstruction by directly aligning octree structures,
  enabling efficient and scalable fusion of partial maps generated by spatially distributed agents.
  This approach is particularly advantageous in large-scale or resource-constrained environments,
@@ -760,11 +1055,10 @@ In multi-robot systems,
 
 \begin_layout Standard
 To address these limitations,
- a follow-up study by the same author (Drwięga,
- 2019) proposed a feature-matching approach that does not require prior knowledge of the robots’ relative poses.
+ a follow-up study by the same author in 2019 [46] proposed a feature-matching approach that does not require prior knowledge of the robots’ relative poses.
  Instead,
- the method extracts local keypoints and descriptors from overlapping sections of octomaps,
- identifies correspondences using SHOT (Signature of Histograms of OrienTations),
+ the method extracts local keypoints and descriptors from overlapping sections of OctoMaps,
+ identifies correspondences using SHOT (Signature of Histograms of Orientations),
  and estimates the transformation using a sample consensus algorithm,
  followed by local refinement via ICP.
  This hybrid strategy combines the strengths of both global feature alignment and local geometric optimisation,
@@ -779,228 +1073,9 @@ Together,
  decentralised approaches that support autonomous exploration and robust localisation without dependency on centralised infrastructure or pre-calibrated initialisation.
  Their relevance spans domains from subterranean robotics to aerial and underwater mapping,
  where varying sensory modalities and inconsistent contact between agents necessitate map fusion techniques that are both adaptable and computationally tractable.
-\end_layout
-
-\begin_layout Section
-Path Planning and Collision avoidance
-\end_layout
-
-\begin_layout Subsection
-Risk-Based Path Planning
-\end_layout
-
-\begin_layout Standard
-Path planning for robots and autonomous mobile vehicles focuses on the map-based risk assessments so that the robot does not collide into obstacles and other physical risks in their environment.
- Therefore,
- the risk factor is the main driving component for robot navigation and fleet decision making.
- Starting with terrestrial mobile robots,
- traversability risk is assessed along a virtual paths which are superimposed onto metric maps or grids.
- By tessellating the environment into a grid of cells of a fixed size where inside the cell the field maintains constant,
- allows the environmental field denoted as 
-\begin_inset Formula $e:\mathbb{R}^{n}\rightarrow\mathbb{R}$
-\end_inset
-
- to be broken down an appropriately assess the occupation and variables of the field inside the cells.
-\end_layout
-
-\begin_layout Standard
-The simplest function measures the occupancy cost of a list of cells in the grid (to form a path or trajectory).
- Occupancy being a binary classifier allows a reward to be assigned to each cell based on its occupancy status;
- positive values denoting occupied and negative denoting free space.
- Comparing the summed rewards of each path (list of cells) allows the robot to match the trajectory with the highest yielded reward to being the safest path to a predetermined goal.
- When considering the use of Bayesian occupancy grids the risk of traversing a path 
-\begin_inset Formula $P_{|0,i|}$
-\end_inset
-
- given by a set of i cells is as follows:
-\end_layout
-
-\begin_layout Standard
-\begin_inset Formula 
-\begin{equation}
-R(P_{|0,i|})=1-\prod_{j=0}^{i}(1-P_{j}),
-\end{equation}
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-where
-\begin_inset Formula $P_{j}$
-\end_inset
-
- is the probability of occupancy within the 
-\begin_inset Formula $j^{th}$
-\end_inset
-
- cell.
- Other work shows the probabilistic definition of risk as the likelihood of the robot finishing the set path or trajectory in the map given as:
-\end_layout
-
-\begin_layout Standard
-\begin_inset Formula 
-\begin{equation}
-R(P_{|0,i|})=1-\prod_{j=0}^{i}\prod_{k=0}^{r}(1-r_{k}),
-\end{equation}
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-where 
-\begin_inset Formula $r_{k}$
-\end_inset
-
- is the probability an occupied cell 
-\begin_inset Formula $k$
-\end_inset
-
- to cause failures at position 
-\begin_inset Formula $j$
-\end_inset
-
- given the history of the robot traversing cells from 
-\begin_inset Formula $0$
-\end_inset
-
- to 
-\begin_inset Formula $j$
-\end_inset
-
-.
-\end_layout
-
-\begin_layout Subsection
-Loss Functions and Physical Risk Metrics
-\end_layout
-
-\begin_layout Standard
-More appropriate solution were developed,
- due to limitations of the simple equations incorrectly evaluating the field in which the paths traversed,
- such as the work of [] which considered the risk of a path to be a measurement of expected loss,
- forming the loss function 
-\begin_inset Formula $L(x_{v},x_{c})$
-\end_inset
-
- where 
-\begin_inset Formula $x_{v}$
-\end_inset
-
- is the vehicle state and 
-\begin_inset Formula $x_{c}$
-\end_inset
-
- is the cell state:
-\begin_inset Formula 
-\begin{equation}
-R(P)=\sum_{i=0}^{N-1}P_{i}\cdot L(x_{v},x_{c}),
-\end{equation}
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-defining the risk loss function as the total loss of kinetic energy in the system as the integral over the trajectory.
- In this formulation,
- the total risk along a path is expressed as the expected loss,
- weighted by the probability of encountering hazards in each cell.
- Since 
-\begin_inset Formula $R$
-\end_inset
-
- is represented as kinetic energy,
- it carries physical meaning —
- unlike simpler models based on collision probability,
- which may yield values in the unbounded range [
-\begin_inset Formula $0,\infty]$
-\end_inset
-
- and lack a tangible interpretation.
- However,
- the function is sensitive to the map’s resolution:
- as the environment is tessellated into smaller cells,
- the number of contributing risk elements increases,
- artificially inflating the total.
- To compensate,
- a common workaround involves multiplying each cell’s risk by its area (
-\begin_inset Formula $∆a$
-\end_inset
-
-),
- normalising the value relative to cell size.
- While this corrects for scaling,
- it weakens the original physical interpretation —
- transforming the risk from a real-world measure,
- such as force or energy,
- into a dimensionless quantity.
- This shift turns the metric into a heuristic that’s more abstract and less directly tied to measurable impacts on the robot,
- such as energy loss or mechanical wear.
-\end_layout
-
-\begin_layout Standard
-By contrast,
- the Lambda field framework preserves its physical consistency regardless of map resolution.
- Instead of summing over discrete cells,
- it defines risk as a continuous function over space —
- specifically,
- as the expected value of a failure-related metric integrated across the area the robot has traversed.
- This approach avoids the distortion caused by varying cell sizes,
- as the risk remains anchored to physical parameters like failure rate or the energy absorbed by robot components.
- As a result,
- the metric remains stable,
- interpretable,
- and better suited to applications requiring physically meaningful decisions,
- such as heterogeneous fleet coordination or real-time navigation through complex terrain.
- The expected value of a risk function 
-\begin_inset Formula $r(a)$
-\end_inset
-
- over a path is defined as:
-\end_layout
-
-\begin_layout Standard
-\begin_inset Formula 
-\begin{equation}
-E[r(X)]=\intop_{p}f(a)r(a)da,
-\end{equation}
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-where 
-\begin_inset Formula $a$
-\end_inset
-
- denotes the area traversed and 
-\begin_inset Formula $f(a)$
-\end_inset
-
- is the probability distribution across that space.
-\end_layout
-
-\begin_layout Standard
-{Can be further expanded find out the maths}
-\end_layout
-
-\begin_layout Standard
-Although,
- Lambda fields are not widely used in risk aware path planning due to the complexity of constant integrals.
- The utilisation of the framework in multi-robot decision making,
- allows robotic agents to compare physical risks between heterogeneous locomotion types that are affected differently depending on the environmental setup;
- providing accurate real world assessments for robot fleet coordination and task management.
-\begin_inset Quotes brd
-\end_inset
-
-
+ When using multiple locomotion-variant agents,
+ being able to localise themselves,
+ share and fuse individual OctoMaps into one large fleet OctoMap is integral for indicating cardinal traversability variables in voxels to dynamically reassign members once new environmental sections are discovered that require specific locomotion-types.
 \end_layout
 
 \begin_layout Section
@@ -1010,8 +1085,7 @@ Communication and Coordination
 \begin_layout Standard
 Recent advances in multi-robot systems have enabled coordinated behaviours among fleets of unmanned robots across a range of applications,
  from warehouse automation to environmental monitoring and disaster response.
- At the heart of this capability lies multi-robot communication —
- the exchange of data,
+ At the heart of this capability lies multi-robot communication the exchange of data,
  commands,
  and situational context between robots and control infrastructure.
  Research in this area focuses on building robust communication frameworks that can adapt to dynamic environments,
@@ -1031,7 +1105,7 @@ Fleet coordination,
  distributed optimization,
  and multi-agent reinforcement learning to enable robots to dynamically allocate tasks,
  avoid collisions,
- and adapt to environmental changes in real time.
+ and adapt to environmental changes in real time [47].
 \end_layout
 
 \begin_layout Standard
@@ -1051,7 +1125,7 @@ In marine and aerial logistics,
  the challenges of multi-robot communication and coordination take on new dimensions due to environmental variability,
  connectivity constraints,
  and the physical dynamics of the platforms.
- Autonomous surface vessels (ASVs) and unmanned underwater vehicles (UUVs),
+ USVs and UUVs,
  for instance,
  often operate in GPS-denied or communication-limited environments,
  relying heavily on intermittent data links,
@@ -1069,11 +1143,11 @@ In marine and aerial logistics,
 \end_layout
 
 \begin_layout Standard
-Compared to terrestrial ground robots —
+Compared to terrestrial ground robots,
  which often benefit from stable terrain,
  consistent connectivity (e.g.,
  Wi-Fi or mesh networks),
- and easier access to power —
+ and easier access to power,
  marine and aerial fleets demand more energy-aware and fault-tolerant coordination strategies.
  For instance,
  in drone delivery networks,
@@ -1081,7 +1155,7 @@ Compared to terrestrial ground robots —
  decentralized path planning,
  and adaptive swarm behaviours to respond to weather disruptions or unexpected obstacles.
  In marine logistics,
- multi-vessel fleets are increasingly coordinated using time-synchronized behaviors or adaptive convoy strategies,
+ multi-vessel fleets are increasingly coordinated using time-synchronized behaviours or adaptive convoy strategies,
  balancing communication load with mission accuracy.
 \end_layout
 
@@ -1091,10 +1165,10 @@ The current research trajectory is moving toward resilient,
  applicable across domains.
  This cross-pollination of techniques from ground,
  aerial,
- and marine robotics is informing the development of more general-purpose coordination frameworks —
- ones that can adaptively scale,
+ and marine robotics is informing the development of more general-purpose coordination frameworks  ones that can adaptively scale,
  function across communication regimes,
- and ensure continuity of operation in real-world conditions.
+ and ensure continuity of operation in real-world conditions [48].
+ 
 \end_layout
 
 \begin_layout Section
@@ -1115,6 +1189,8 @@ In dynamic and unstructured environments,
  As such,
  recent research has focused heavily on methods that enable online mapping and rapid replanning,
  allowing fleets to adapt their trajectories and strategies based on the most up-to-date situational data.
+ Recent work therefore concentrates on two coupled abilities:
+ keeping a shared 3-D map fresh and replanning paths the moment that map changes.
 \end_layout
 
 \begin_layout Standard
@@ -1122,81 +1198,83 @@ At the core of this capability is the need for shared,
  scalable,
  and mutable mapping frameworks.
  Octree-based mapping systems,
- such as OctoMap,
+ such as OctoMap [26] ,
  are widely used due to their hierarchical structure and memory efficiency.
- OctoMap’s probabilistic 3D occupancy representation enables the compact storage of large environments while supporting variable resolution—
-a critical feature for multi-robot systems where different agents might have varying sensing capabilities or operational priorities.
+ OctoMap’s probabilistic 3D occupancy representation enables the compact storage of large environments while supporting variable resolution.
+ This is a critical feature for multi-robot systems where different agents might have varying sensing capabilities or operational priorities.
  However,
- a key challenge remains in fusing multiple OctoMaps or submaps generated by different agents.
+ a key challenge remains in fusing multiple OctoMaps or sub-maps generated by different agents.
  The problem lies in aligning coordinate frames,
  managing overlapping updates,
  and mitigating drift errors in robot odometry.
- Some recent work explores feature-matching and probabilistic fusion approaches to achieve consistent merging of 3D maps from heterogeneous agents,
- though this remains an active area of research.
+ Jessup et al.
+ present a method that fuses the separate octree occupancy maps built by different robots into one global OctoMap,
+ correctly handling multiple tree depths and arbitrary three dimensional transformations between reference frames [51].
+ Their simulation results show that the merged map keeps accurate occupancy probabilities even when the individual voxel grids are misaligned,
+ proving the approach viable for large scale multi robot mapping.
 \end_layout
 
 \begin_layout Standard
-Beyond OctoMaps,
- real-time updates also require systems capable of distinguishing between static,
- dynamic,
- and unknown regions of the map.
- This is especially important for environments with moving obstacles,
- such as humans,
- vehicles,
- or other robots.
- Truncated Signed Distance Fields (TSDFs) and Voxel Hashing have been proposed as alternatives to traditional occupancy grids,
- particularly in visual SLAM and 3D reconstruction,
- due to their ability to represent surfaces implicitly and handle partial observations more robustly.
- Additionally,
- hybrid systems that combine elevation maps (useful for ground robots) with semantic labels or appearance-based maps (e.g.,
- RTAB-Map,
- SkiMap) are being explored to enrich spatial representations with contextual information,
- thereby improving navigation decisions.
+Shared decision-making is equally critical at the task level.
+ Korngut and Agmon showed heterogeneous coverage into a decentralised POMDP so that each robot balances its own velocity and threat-tolerance while the team maximises total swept area and limits overall mission time [52].
+ Policies obtained with multi-agent reinforcement learning cleared grids faster than earlier heuristics and left fewer robots disabled,
+ underscoring how shared learning can exploit spatial risk gradients that vary from one platform to the next.
 \end_layout
 
 \begin_layout Standard
-Replanning algorithms must work hand-in-hand with mapping to maintain mission success.
- When a robot detects a previously unknown obstacle or terrain deformation,
- its existing path may become suboptimal or even infeasible.
- Real-time replanning,
- particularly in multi-robot systems,
- must not only adjust individual trajectories but do so while preserving global coordination and avoiding inter-robot conflicts.
- Algorithms such as D* Lite,
+Mapping pipelines must also filter out transients before fusion.
+ Lichtenfeld et al.
+ attach a range-image segmenter to a lightweight LiDAR odometry front-end and flag points with high registration residuals as dynamic,
+ adding only 14 ms per scan while still tracking articulated targets such as running humans [53].
+ Removing those points on-the-fly prevents ghost artefacts and allows a fleet to maintain a consistent occupancy grid when surveying cluttered disaster scenes.
+\end_layout
+
+\begin_layout Standard
+Beyond octrees,
+ more expressive volumetric schemes help discriminate static,
+ dynamic and unknown space.
+ Truncated Signed Distance Fields and voxel-hashing variants can represent surfaces implicitly and tolerate partial observations,
+ while hybrid stacks combine metric layers (elevation,
+ TSDF) with semantic overlays from systems such as RTAB-Map or SkiMap to support both navigation and high-level reasoning.
+ RTAB-Map offers dense,
+ visually rich reconstructions that stabilise visual-inertial odometry [29];
+ SkiMap’s skip-list voxel grid updates in logarithmic time and fits comfortably in memory,
+ making it well suited to multi-robot path planning.
+ A practical workflow is therefore to build an RTAB-Map first,
+ then periodically down-project it into a SkiMap,
+ still leaving head-room to exploit SkiMap’s extra voxel fields for task-specific metadata [54].
+ 
+\end_layout
+
+\begin_layout Standard
+Replanning must keep pace with these evolving maps.
  Anytime Dynamic A*,
- and incremental RRT variants are commonly used for local replanning,
- while global task reassignment may involve centralized or decentralized optimization depending on the communication infrastructure.
+ D* Lite and incremental RRT variants can all re-optimise local trajectories when new obstacles appear,
+ while higher-level task redispatch can be handled either centrally or through market-based negotiation [55].
+ Sampling-based planners remain attractive when the search space is truly three-dimensional.
+ The RRT family explores free volume rapidly and RRT* gradually “rewires’’ the tree toward shorter paths;
+ Hu et al.
+ accelerate this process for autonomous underwater vehicles by combining bidirectional growth,
+ path-cache biasing and an ant-colony post-optimiser,
+ cutting node count and convergence time in a 100 × 100 × 100 m simulation and outperforming baseline RRT*,
+ ant-colony and particle-swarm planners [56].
 \end_layout
 
 \begin_layout Standard
-Furthermore,
- in multi-agent systems,
- the latency of map updates and the consistency of shared world models become critical.
- Delays in communication or discrepancies between local maps can lead to conflicting decisions,
- collisions,
- or task duplication.
- Some systems address this through periodic global map fusion,
- while others use consensus-based protocols or blockchain-inspired data validation to maintain consistency.
+Latency and global consistency are the final hurdles.
+ If local sub-maps lag behind or disagree,
+ agents may collide or duplicate effort;
+ current solutions range from tightly scheduled global fusion to decentralised consensus and even blockchain-inspired ledgers for auditability.
 \end_layout
 
 \begin_layout Standard
-In summary,
- real-time map updates and replanning are foundational to safe,
- adaptive,
- and scalable multi-robot operation.
- Future research must continue addressing challenges in efficient map fusion,
- semantic and temporal map layering,
- and robust distributed planning under communication and computational constraints.
- This will be especially crucial for applications involving heterogeneous fleets,
- where differing sensory modalities and mobility types require flexible and context-aware integration of mapping and planning processes.
-\end_layout
-
-\begin_layout Standard
-For the Efficient Integration of Octree Based Maps in Multi-Robot System;
- Features Matching based Merging of 3D Maps in Multi-Robot System
-\end_layout
-
-\begin_layout Standard
-Coverage https://ieeexplore.ieee.org/document/10416778
+Together these advances suggest a roadmap towards fleets that map,
+ reason and re-plan continuously,
+ even when sensors,
+ mobility and on-board compute differ widely across platforms and when the world itself refuses to stand still;
+ a prerequisite for long-duration autonomy in subterranean,
+ sub-sea,
+ and hybrid environment SAR missions.
 \end_layout
 
 \begin_layout Section
@@ -1205,10 +1283,10 @@ Task Allocation and Decision-Making
 
 \begin_layout Standard
 While risk quantification methods such as Lambda fields provide powerful insight into the physical and operational challenges a robot might encounter,
- their true utility is only realised when they inform higher-level decisions —
+ their true utility is only realised when they inform higher-level decisions,
  particularly task allocation and mission planning.
  In multi-robot systems,
- especially heterogeneous fleets operating in high-stakes environments like disaster zones,
+ especially when heterogeneous fleets are operating in high-stakes environments like disaster zones,
  it is critical that tasks are not assigned purely based on availability or proximity.
  Instead,
  they must be allocated with an awareness of the robot’s capability,
@@ -1218,37 +1296,83 @@ While risk quantification methods such as Lambda fields provide powerful insight
 
 \begin_layout Standard
 Traditionally,
- task allocation has relied on cost-based models such as the Hungarian algorithm or market-based auction frameworks,
+ task allocation has relied on cost-based models such as the Hungarian algorithm [https://ieeexplore.ieee.org/document/9548600] or market-based auction [https://ieeexplore.ieee.org/document/5663696] frameworks,
  where robots "bid" for tasks based on estimated completion costs.
- These systems often assume homogeneous risk perception across all agents —
- an assumption that breaks down quickly in real-world scenarios involving terrain-sensitive locomotion (e.g.,
- tracked UGVs vs.
- drones) or domain-specific hazards (e.g.,
+ These systems often assume homogeneous risk perception across all agents,
+ an assumption that breaks down quickly in real-world scenarios involving terrain-sensitive locomotion,
+ such as tracked UGVs vs.
+ aerial drones,
+ or domain-specific hazards;
  underwater currents for UUVs vs.
- signal loss for UAVs).
+ signal loss for UAVs.
  By integrating Lambda field-based risk metrics,
  each agent can carry its own spatially varying risk map,
  allowing for more nuanced comparisons between robots operating in the same area but facing very different challenges.
 \end_layout
 
 \begin_layout Standard
+Recent literature makes it clear that no single algorithm can satisfy the competing demands of optimality,
+ scalability,
+ and real-time response in heterogeneous robot fleets.
+ Contemporary work therefore layers combinatorial planners with learning-based heuristics,
+ allowing each level to compensate for the other’s weaknesses.
+\end_layout
+
+\begin_layout Standard
+At the motion layer,
+ variants of Conflict-Based Search (CBS) augmented with any-angle or kinodynamic branches now support warehouse-scale fleets (>1 000 robots) while preserving completeness and bounded sub-optimality [https://ieeexplore.ieee.org/document/10956552].
+ Where computational budgets are tighter,
+ learning-derived shared policies such as PRIMAL2 [https://arxiv.org/abs/2010.08184] approximate CBS performance at a fraction of the runtime by training a single neural controller offline and deploying it identically on every robot.
+\end_layout
+
+\begin_layout Standard
+At the task layer,
+ market-style solvers remain dominant.
+ The Consensus-Based Bundle Algorithm (CBBA) [https://ieeexplore.ieee.org/document/9463481] and its delay-tolerant successor DC-CBBA [X] converge in a handful of communication rounds even under heterogeneous vehicle capabilities and stochastic travel times.
+ When task precedence and energy constraints become severe,
+ mixed-integer encodings coupled with incremental SMT solvers (Satisfiability Modulo Theories) [https://ieeexplore.ieee.org/document/7479105/footnotes#footnotes] achieve near-optimal allocations for fleets numbering in the hundreds.
+\end_layout
+
+\begin_layout Standard
+Learning approaches have matured beyond proof-of-concept.
+ Value-decomposition algorithms such as QPLEX [https://ieeexplore.ieee.org/document/10685805] and actor-critic families such as Multi-Agent Proximal Policy Optimization (MAPPO) [https://ieeexplore.ieee.org/document/10167264] outperform classical heuristics on cooperative manipulation and drone-racing benchmarks,
+ mainly through better credit assignment and shared critics.
+ Recent graph-neural extensions embed each robot as a node and learn both the control policy and the communication topology,
+ cutting bandwidth by an order of magnitude without degrading success rates.
+\end_layout
+
+\begin_layout Standard
+Uncertainty is handled explicitly in the latest formulations.
+ Heterogeneous-Team Dec-POMDP s[https://ieeexplore.ieee.org/document/7140035] embed sensing,
+ communication and risk preferences directly into the transition and reward models,
+ while chance-constrained MPC provides hard collision-probability bounds in the presence of wind gusts or localisation drift.
+ Bayesian task-allocation layers further allow bidding on probability of success rather than deterministic cost—
+critical in offshore and lunar domains.
+\end_layout
+
+\begin_layout Standard
+Wu et al.’s recent work [https://ieeexplore.ieee.org/document/9484733] provides an extended blueprint for the decision-making layer of the Lambda field architecture.
+ By extending the classical Dec-POMDP formalism to an Heterogenous-Team-Dec-POMDP,
+ the authors embed two decision-critical dimensions that most existing allocators ignore:
+ functional diversity in sensing,
+ actuation and communication,
+ and agent-specific risk-tolerance encoded directly in the local reward model.
+ Using deep-Q learning on belief states,
+ the framework lets each robot learn when to specialise (leveraging unique capabilities) and when to cooperate (pooling risk and resources) without a central coordinator.
+ Their disaster-relief benchmark shows that a moderately heterogeneous team with a small fraction of “risk-taking” agents finishes missions faster and with lower variance than both homogeneous and highly-specialised teams.
+ 
+\end_layout
+
+\begin_layout Standard
 A practical application of this integration is in computing the expected risk for a specific robot–task pair as the cumulative risk encountered along the robot’s planned trajectory.
- This risk can be expressed as a spatial integral over the Lambda field:
-\end_layout
-
-\begin_layout Standard
-Expected Risk
-\end_layout
-
-\begin_layout Standard
-β allow weighting of risk tolerance versus mission urgency,
+ This expected risk can be expressed as a spatial integral over the Lambda field allow weighting of risk tolerance versus mission urgency,
  which can be adjusted dynamically based on available resources or operator input.
 \end_layout
 
 \begin_layout Standard
 Moreover,
- in dynamic environments where conditions evolve —
- such as in SAR missions during aftershocks or flooding —
+ in dynamic environments where conditions evolve,
+ such as in SAR missions during aftershocks or flooding,
  Lambda fields can be continuously updated based on new sensory data.
  This enables a risk-aware reallocation strategy,
  where tasks are not static but re-evaluated as environmental risk distributions shift.
@@ -1264,13 +1388,13 @@ Heterogeneous fleets,
  a terrain type that poses minimal risk to a drone may be nearly impassable to a wheeled ground robot.
  Thus,
  Lambda fields must not only inform task assignment,
- but do so in a robot-specific way,
+ but also specifically allocate agents,
  where risk is computed as a function of both the agent’s locomotion characteristics and its remaining resources (e.g.,
  battery,
  payload capacity,
  sensor quality).
  This enables planners to allocate tasks not just to robots that can complete them,
- but to those that are statistically the most likely to succeed —
+ but to those that are statistically the most likely to succeed,
  a distinction that becomes vital in uncertain and resource-limited operations.
 \end_layout
 
@@ -1281,6 +1405,7 @@ In essence,
  they allow for robust,
  interpretable,
  and flexible task allocation strategies that respond intelligently to both agent capabilities and real-time environmental conditions.
+ 
 \end_layout
 
 \begin_layout Section
@@ -1303,91 +1428,637 @@ Simulating multi-robot systems is crucial for testing algorithms,
  Unity,
  and CoppeliaSim,
  assessing their strengths and limitations.
-\end_layout
-
-\begin_layout Standard
-Gazebo has long been the go-to simulator for ROS-based robotic systems,
- offering tight integration with ROS 2,
- support for sensor simulation,
- and modular plugin-based architecture.
- It has been widely used for mobile robots,
- manipulators,
- and UAVs.
- However,
- its CPU-based physics engine and limited scalability present challenges for simulating large multi-robot fleets.
- Gazebo also lacks GPU acceleration,
- making it less suitable for real-time AI training and large-scale distributed simulations (Koenig & Howard,
- 2004).
-\end_layout
-
-\begin_layout Standard
-Isaac Sim,
- developed by NVIDIA,
- leverages Omniverse and PhysX 5 for GPU-accelerated physics,
- making it one of the most powerful platforms for simulating multi-robot fleets.
- Unlike Gazebo,
- Isaac Sim supports ROS 2 natively,
- integrates AI reinforcement learning pipelines,
- and offers photorealistic rendering with RTX support.
  Additionally,
- it facilitates cloud-based simulations,
- allowing large-scale fleet testing with distributed computing.
- Isaac Sim’s ability to simulate high-fidelity sensors (LiDAR,
- depth cameras,
- stereo vision) and integrate with OctoMaps for 3D mapping makes it a strong contender for autonomous robotic fleets (Makoviychuk et al.,
- 2021).
+ the Mission Planner ground control station (GCS) software will be assessed as fast simulation and deployment tool for small scale robot deployments,
+ using MAVLink Protocols to test on ardupilot hardware (Ardu-Rover,
+ Ardu-quadrotor,
+ Ardu-Boat)
 \end_layout
 
 \begin_layout Standard
-Unreal Engine has emerged as a powerful alternative for simulating large-scale environments due to its advanced rendering capabilities,
- flexible physics engine,
- and real-time visualisation tools.
- It has been particularly useful for human-robot interaction (HRI),
- AR/VR simulations,
- and urban-scale robotics applications.
- Unlike Isaac Sim,
- Unreal Engine does not natively support GPU-accelerated physics for multi-robotics but can handle massive environments efficiently (Shah et al.,
- 2018).
- However,
- its ROS 2 integration requires third-party plugins like AirSim,
- making it less straightforward for robotics research.
+\begin_inset Float table
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="7" columns="7">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top" width="2cm">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\series bold
+\size footnotesize
+Simulator
 \end_layout
 
-\begin_layout Standard
-Unity provides game-engine-level scalability and excellent visualization tools,
- making it ideal for applications requiring UI-heavy interfaces,
- digital twins,
- and large-scale virtual environments.
- Unity supports ROS 2 through its ROS-TCP Connector,
- but its physics engine is less accurate than Isaac Sim or Gazebo.
- However,
- its ability to handle real-time simulations with large numbers of robots makes it a viable choice for fleet visualisation and urban robotics (Craighead et al.,
- 2007).
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\series bold
+\size footnotesize
+ROS 2 Support
 \end_layout
 
-\begin_layout Standard
-CoppeliaSim (formerly V-REP) is known for its multi-threaded simulation environment,
- allowing multiple robots to operate independently.
- It provides real-time inverse kinematics,
- physics simulation,
- and support for swarm robotics.
- While it integrates well with ROS 2,
- it lacks GPU acceleration,
- making it less suitable for high-fidelity sensor simulations (Rohmer et al.,
- 2013).
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\series bold
+\size footnotesize
+Physics 
 \end_layout
 
-\begin_layout Standard
-Given the requirements for multi-robot fleet simulation,
- Isaac Sim emerges as the best all-around choice due to its GPU-accelerated physics,
- AI integration,
- and cloud scalability.
- However,
- if the focus is on large-scale world simulations or human-robot interaction,
- Unreal Engine or Unity may be better choices.
- Gazebo remains viable for ROS 2 users,
- but its limitations in physics accuracy and scalability make it less ideal for multi-robot coordination.
- Future research should explore hybrid approaches that combine Isaac Sim’s AI-driven simulations with Unreal Engine’s large-scale visualisation to create next-generation multi-robot simulations.
+\begin_layout Plain Layout
+
+\series bold
+\size footnotesize
+Realism
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\series bold
+\size footnotesize
+Sensor 
+\end_layout
+
+\begin_layout Plain Layout
+
+\series bold
+\size footnotesize
+Fidelity 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\series bold
+\size footnotesize
+Scalability for Large Fleets
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\series bold
+\size footnotesize
+Overall
+\end_layout
+
+\begin_layout Plain Layout
+
+\series bold
+\size footnotesize
+Suitability
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\series bold
+\size footnotesize
+Ref
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Gazebo
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+High
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Low
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Medium
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Medium
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Medium
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+[T1]
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Isaac Sim
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+High
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Very High
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Very High
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Very High
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Very High
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+[T2,T22]
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Unreal Engine
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Medium
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Medium
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Medium
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+High
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+High
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+[T3]
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Unity
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Medium
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Medium
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Medium
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+High
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+High
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+[T4]
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+CoppeliaSim 
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Medium
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Medium
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Medium
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Low
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Medium
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+[T5]
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Mission Planner
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Medium
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Low
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Low
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Medium
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+Very High*
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\size footnotesize
+[T6,T7]
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Comparative overview of mainstream multi-robot simulation platforms
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Section
@@ -1395,18 +2066,19 @@ Contributions
 \end_layout
 
 \begin_layout Standard
-This research introduces a novel and integrated framework for coordinating fully heterogeneous robotic fleets —
+This research introduces a novel and integrated framework for coordinating fully heterogeneous robotic fleets,
  including aerial,
  aquatic,
  legged,
  wheeled,
- and surface agents —
- within high-risk,
+ and surface agents within high-risk,
  real-world disaster environments.
- The key contributions are outlined as follows:
+ The key expected contributions are outlined as follows:
 \end_layout
 
 \begin_layout Standard
+
+\series bold
 1.
  Unified Traversability Risk Assessment Framework
 \end_layout
@@ -1419,13 +2091,15 @@ A centralised framework is developed that quantitatively assesses terrain risk u
 \end_layout
 
 \begin_layout Standard
+
+\series bold
 2.
  Extension of Lambda Fields to Multi-Robot Decision-Making
 \end_layout
 
 \begin_layout Standard
-This work adapts the Lambda field framework —
- traditionally applied to individual robot path planning —
+This work adapts the Lambda field framework,
+ traditionally applied to individual robot path planning,
  for use in fleet-level coordination.
  By treating risk as a physically meaningful,
  spatially distributed field,
@@ -1433,6 +2107,8 @@ This work adapts the Lambda field framework —
 \end_layout
 
 \begin_layout Standard
+
+\series bold
 3.
  Risk-Aware Task Allocation and Mission Planning
 \end_layout
@@ -1447,6 +2123,8 @@ A mission planning algorithm is proposed that dynamically allocates tasks based 
 \end_layout
 
 \begin_layout Standard
+
+\series bold
 4.
  Real-Time 3D Map Fusion and Replanning Pipeline
 \end_layout
@@ -1459,6 +2137,8 @@ A hybrid map merging approach is implemented,
 \end_layout
 
 \begin_layout Standard
+
+\series bold
 5.
  Simulation-Based Validation in Disaster Scenarios
 \end_layout
@@ -1486,7 +2166,7 @@ Together,
 \begin_layout Standard
 The literature reviewed throughout this chapter establishes a clear need for a unified,
  risk-aware coordination strategy for heterogeneous multi-robot systems.
- Existing approaches have made significant strides in dual- or tri-locomotion coordination,
+ Existing approaches have made significant strides in dual or tri-locomotion coordination,
  path planning,
  mapping,
  and fleet control;

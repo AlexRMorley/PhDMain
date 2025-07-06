@@ -240,9 +240,29 @@ status open
 \backslash
 newcommand{
 \backslash
-myadvisorname}{Pawel Ladosz,
+myadvisorname}{Supervisors:
+ Pawel Ladosz,
  Kieran Wood,
  Simon Watson}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+newcommand{
+\backslash
+myIadvisorname}{Industrial Supervisor:
+ Matthew Goundry}
 \end_layout
 
 \end_inset
@@ -307,90 +327,6 @@ status open
 \backslash
 newcommand{
 \backslash
-mydedication}{
-\end_layout
-
-\end_inset
-
-
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-Optional
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\begin_inset ERT
-status open
-
-\begin_layout Plain Layout
-
-}
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\begin_inset ERT
-status open
-
-\begin_layout Plain Layout
-
-
-\backslash
-newcommand{
-\backslash
-myacknowledgments}{
-\end_layout
-
-\end_inset
-
-
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-Optional
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\begin_inset ERT
-status open
-
-\begin_layout Plain Layout
-
-}
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\begin_inset ERT
-status open
-
-\begin_layout Plain Layout
-
-
-\backslash
-newcommand{
-\backslash
 abstract}{
 \end_layout
 
@@ -411,55 +347,65 @@ Limited to one page
 
 \begin_layout Standard
 \align left
-Abstract limited to one page.
+Practical disaster-response robotics requires heterogeneous fleets that can communicate and negotiate the presence of obstacles,
+ bodies of water,
+ open-air spaces and confined indoor passages with equal competence.
+ However,
+ most current Search and Rescue (SAR) frameworks treat terrain risk,
+ energy management and communication loss as disjoint sub-problems,
+ and rarely scale the fleet size beyond two locomotion domains,
+ such as a ground rover and an aerial drone.
+ This work introduces a unified,
+ coherent-risk planning framework for fully heterogeneous locomotion-diverse robot fleets,
+ comprising aerial,
+ ground,
+ legged,
+ surface and sub-surface agents.
 \end_layout
 
 \begin_layout Standard
-\begin_inset ERT
-status open
-
-\begin_layout Plain Layout
-
-}
-\end_layout
-
+Utilising a multi-resolution 
+\begin_inset Formula $\lambda$
 \end_inset
 
-
+-field that fuses traversability hazards (slope,
+ roughness,
+ structural instability,
+ environmental temperatures and radiation) with efficiency constraints (battery depletion,
+ bandwidth degradation,
+ on-board computational load),
+ real-world environmental risks of traversing through sections of terrain can be quantified.
+ By adapting the OctoMap architecture,
+ each voxel stores environmental variables that contribute to a calibrated failure rate,
+ which is derived from the weighted traversability risk calculation from each respective robot locomotion type.
+ Coherent aggregation over chunks of voxels in the environment yields an expected mission-loss metric so the mission planner can coordinate and distribute the most suitable locomotion type,
+ based on individual traversability risk value in the fragmented section of terrain.
+ The field is maintained online through incremental OctoMap fusions that are passed to a centralised shared OctoMap,
+ allowing agents with dissimilar sensors to locate themselves in a shared virtual world,
+ receive external map data and task allocations to assist in populating unseen voxels in the inaccessible areass.
 \end_layout
 
 \begin_layout Standard
-\begin_inset ERT
-status open
-
-\begin_layout Plain Layout
-
-
-\backslash
-newcommand{
-\backslash
-layabstract}{
-\end_layout
-
+The decision-making framework is structured as a mixed-integer programme that minimises fleet-wide risk under time-energy budgets.
+ A market-based re-auction mechanism reallocates tasks whenever local 
+\begin_inset Formula $\lambda$
 \end_inset
 
-
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-Optional.
- Limited to one page.
-\end_layout
-
-\end_inset
-
-
+-gradients exceed a critical threshold,
+ ensuring adaptation to newly explored regions that are untraversable to the pioneering agent.
+ The approach is validated in urban-rural hybrid scenarios spanning flooded subway tunnels,
+ post-disaster ruins and debris-dense forests.
 \end_layout
 
 \begin_layout Standard
-\align left
-Optional lay abstract limited to one page.
+The study demonstrates that coherent risk representation,
+ when paired with dynamic task markets,
+ can unlock principled coordination in truly multi-locomotion heterogeneous robot fleets.
+ Ongoing work targets real-world trials with a quadrotor,
+ rover,
+ and a surface robot trio,
+ ensuring probabilistic traversability safety and efficiency for each member of the fleet,
+ aiming to assess the fleet's robustness with dynamic objects in the environment.
 \end_layout
 
 \begin_layout Standard
@@ -536,57 +482,6 @@ EITHER:
 OR:
  what portion of the work referred to in the thesis has been submitted in support of an application for another degree or qualification of this or any other university or other institute of learning.
  This should include reference to joint authorship of published materials which might have been included in a thesis submitted by another student to this university or any other university or other institute of learning.
-\end_layout
-
-\begin_layout Standard
-\begin_inset ERT
-status open
-
-\begin_layout Plain Layout
-
-}
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\begin_inset ERT
-status open
-
-\begin_layout Plain Layout
-
-
-\backslash
-newcommand{
-\backslash
-abouttheauthor}{
-\end_layout
-
-\end_inset
-
-
-\begin_inset Note Note
-status open
-
-\begin_layout Plain Layout
-Optional.
- Advisable.
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\align left
-It is advisable to include a brief statement for External Examiners,
- giving the candidate’s degree(s) and research experience,
- even if the latter consists only of the work done for this thesis.
- This may be untitled or it may be headed ‘Preface’ or ‘The Author’ or similar.
 \end_layout
 
 \begin_layout Standard
