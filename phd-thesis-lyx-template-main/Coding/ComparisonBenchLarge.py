@@ -377,6 +377,87 @@ if GNFShadowSim is None:
 # Names of sims that are K variants — used for compute-breakdown instrumentation
 K_SIM_NAMES = {'K-12', 'K-20', 'K-30'}
 
+# ── Information-access audit ("open information" per model) ───────────────────
+# What each policy is allowed to KNOW, verified against the loaded sources.
+# Shared assumptions across ALL models (level playing field): the radio-shadow
+# geometry is known a priori; a robot senses true terrain/hazard within its
+# sensor radius + LOS; the true terrain of the NEXT cell is learned on contact;
+# survivor positions are never known in advance, and a detection registers in
+# the mission-level `found` set instantly — including, in every model, from a
+# robot currently in blackout (a known shared simplification worth stating in
+# the thesis; K could gate this on comms in future work).
+INFO_ACCESS = {
+    'K-*': {
+        'map_sharing':     'Comms-gated union: open-air robots share instantly; '
+                           'relay-bridged shadow robots delayed RELAY_COMMS_DELAY ticks; '
+                           'blackout robots excluded entirely (outbox held locally).',
+        'blackout_info':   'Total: contributes nothing, receives nothing.',
+        'blackout_action': 'Comms-loss hold — freezes in place, no planning; recovery '
+                           'only by physical relay dispatch (safety sweep).',
+        'policy_terrain':  'Belief-only (_belief_stair_arr / _belief_water_arr); '
+                           'no world-truth reads in policy.',
+        'notes':           'Strictest model: blackout gates BOTH information and action.',
+    },
+    'J-bounded': {
+        'map_sharing':     'NOT AUDITED THIS SESSION (J source not reviewed here).',
+        'blackout_info':   'Legacy comms model expected: comms-death + revive.',
+        'blackout_action': 'Legacy autonomous evacuation expected (pre-hold lineage).',
+        'policy_terrain':  'Verify against J source before citing.',
+        'notes':           'Confirm all J rows against 2DFleetFrameworkJ before use.',
+    },
+    'GNF': {
+        'map_sharing':     'Instant global union rebuilt from ALL robots every tick — '
+                           'NOT comms-gated: blackout robots still contribute scans and '
+                           'read the full fleet map.',
+        'blackout_info':   'None enforced — full fleet knowledge at all times.',
+        'blackout_action': 'Movement into uncovered interior blocked by reachability '
+                           'gate; robots otherwise plan/move normally in shadow.',
+        'policy_terrain':  'Union belief only; true terrain on contact (shared).',
+        'notes':           'Shadow restricts motion, never information.',
+    },
+    'GNF-Shadow': {
+        'map_sharing':     'Same as GNF: instant global union, not comms-gated.',
+        'blackout_info':   'None enforced.',
+        'blackout_action': 'Bounce-back gate at uncovered-shadow edge (movement only).',
+        'policy_terrain':  'Union belief only.',
+        'notes':           'Adds motion enforcement over GNF; information still open.',
+    },
+    'GreedyRL': {
+        'map_sharing':     'Inherits GNF step: instant global union, not comms-gated.',
+        'blackout_info':   'None enforced.',
+        'blackout_action': 'Plans normally.',
+        'policy_terrain':  'ORACLE: _reward/_greedy_goal read TRUE terrain of candidate '
+                           'cells (stair bonus for buildings never observed) and the '
+                           'FULL true stair map (_world_stair_arr) to count unknown '
+                           'stair cells for the relay-border bonus.',
+        'notes':           'Only model whose REWARD uses remote world truth — its '
+                           'relay-border behaviour is oracle-informed by construction.',
+    },
+    'CARA-Base': {
+        'map_sharing':     'Instant global union, not comms-gated; MILP allocation '
+                           'runs over the union.',
+        'blackout_info':   'None enforced.',
+        'blackout_action': 'Plans normally (no execution layer).',
+        'policy_terrain':  'Union belief only; true terrain on contact (shared).',
+        'notes':           '',
+    },
+    'CARA-Dynamic': {
+        'map_sharing':     'Same as CARA-Base.',
+        'blackout_info':   'None enforced.',
+        'blackout_action': 'EJECT: autonomous escape via shadow-free A* '
+                           '(_plan_to_ignoring_shadow / _nearest_exit_bfs) — retains '
+                           'exactly the self-evacuation mechanism K removed.',
+        'policy_terrain':  'Union belief only.',
+        'notes':           'Hold/eject execution layer; eject is an info-free but '
+                           'action-privileged escape K forbids itself.',
+    },
+}
+
+def _info_access_for(sim_name):
+    if sim_name in K_SIM_NAMES:
+        return INFO_ACCESS['K-*']
+    return INFO_ACCESS.get(sim_name, {})
+
 RECORD_EVERY = 25
 BAR_WIDTH    = 32
 
@@ -475,6 +556,18 @@ class Result:
         # ── K compute breakdown (K variants only, else empty) ─────────────
         # Seconds accumulated per phase across the whole run
         self.compute_breakdown = {}            # {'role', 'alloc', 'cover', 'other'}
+        # ── End-of-run recordings (statistical analysis / CSV export) ─────
+        self.steps_ran        = 0     # ticks actually simulated (≤ steps)
+        self.stranded_end     = 0     # robots ending the run in comms blackout
+        self.blackout_total   = 0     # fleet robot-ticks frozen in blackout (K)
+        self.blackout_max     = 0     # longest single blackout episode (K)
+        self.stagnation_fires = 0     # watchdog rescues triggered (K)
+        self.found_building   = 0     # survivors found on true stair cells
+        self.found_open       = 0     # survivors found in the open
+        self.relay_duty_ticks = 0     # robot-ticks spent in RELAY role
+        self.battery_used     = 0.0   # fleet energy proxy: sum(MAX-battery)
+        self.t_cov90          = -1    # first snapshot tick with coverage ≥ 90%
+        self.t_stair50        = -1    # first snapshot tick with stair cov ≥ 50%
 
 # ── Runner ─────────────────────────────────────────────────────────────────────
 STALL_WINDOW = 600   # was 300 — doubled for 200×200 map (relay cycle ~200 ticks)
@@ -557,6 +650,11 @@ def run_sim(sim_name, factory, seed, steps):
             if r.active and sim.radio_shadow[r.pos[0], r.pos[1]] and not _relay_covered(sim, r):
                 trapped += 1
 
+        # Relay duty (coordination overhead): robot-ticks spent as RELAY
+        if _Role is not None:
+            res.relay_duty_ticks += sum(
+                1 for r in active_robots if getattr(r, 'role', None) == _Role.RELAY)
+
         # CARA MILP timing
         if hasattr(sim, 'milp_solve_times'):
             cur_n = len(sim.milp_solve_times)
@@ -569,9 +667,12 @@ def run_sim(sim_name, factory, seed, steps):
         if step % RECORD_EVERY == 0 or step == 1:
             cov = float(np.mean(sim.union_belief != M.T_UNKNOWN)) * 100
             ent, _ = _buildings_entered(sim)
+            _sc = _stair_cov(sim)
+            if cov >= 90.0 and res.t_cov90 < 0:  res.t_cov90 = step
+            if _sc >= 50.0 and res.t_stair50 < 0: res.t_stair50 = step
             res.found_ts.append((step, len(sim.found)))
             res.cov_ts.append((step, cov))
-            res.stair_ts.append((step, _stair_cov(sim)))
+            res.stair_ts.append((step, _sc))
             res.bldg_ts.append((step, ent))
             res.redundancy_ts.append((step, _redundancy(sim) * 100))
             res.zone_redundancy_ts.append((step, _zone_redundancy(sim) * 100))
@@ -657,6 +758,34 @@ def run_sim(sim_name, factory, seed, steps):
                       and sim.radio_shadow[r.pos[0], r.pos[1]]
                       and not _relay_covered(sim, r))
     res.trapped = trapped
+    res.steps_ran = step
+
+    # ── End-of-run comms-loss recording ────────────────────────────────────
+    # Comms loss is recorded at simulation end, never as a death. K exposes
+    # comms_loss_report(); for other models, fall back to per-cell shadow
+    # status if available so stranded_at_end is comparable.
+    _report = getattr(sim, 'comms_loss_report', None)
+    if callable(_report):
+        rep = _report()
+        res.stranded_end   = len(rep['stranded_at_end'])
+        res.blackout_total = rep['blackout_ticks_total']
+        res.blackout_max   = rep['blackout_ticks_max']
+    else:
+        res.stranded_end = sum(
+            1 for r in sim.robots if r.active
+            and sim.radio_shadow[r.pos[0], r.pos[1]] and not _relay_covered(sim, r))
+    res.stagnation_fires = int(getattr(sim, '_stagnation_fires', 0))
+
+    # Survivors found split by true location class (METRIC-only world truth —
+    # identical measurement for every model; policies never see this).
+    sm = _stair_mask(sim)
+    res.found_building = sum(1 for (sx, sy) in sim.found if sm[sx, sy])
+    res.found_open     = len(sim.found) - res.found_building
+
+    # Fleet energy proxy: battery consumed across all robots.
+    res.battery_used = float(sum(
+        max(0.0, LARGE_MAX_BATTERY - getattr(r, 'battery', LARGE_MAX_BATTERY))
+        for r in sim.robots))
     n = len(st)
     res.p50 = st[n//2]; res.p90 = st[int(n * 0.9)]; res.avg_ms = sum(st) / n
 
@@ -748,6 +877,8 @@ def main():
                     f"  found={res.final_found}/{res.total_survivors}"
                     f"  deaths={res.deaths}(haz={res.hazard_deaths}/bat={res.battery_deaths})"
                     f"  trapped={res.trapped}"
+                    f"  strand@end={res.stranded_end}"
+                    f"  blkout={res.blackout_total}"
                     f"  P50={res.p50:5.1f}ms  P90={res.p90:6.1f}ms  avg={res.avg_ms:5.1f}ms"
                     f"{stall_tag}")
             if is_cara:
@@ -759,11 +890,13 @@ def main():
             for k in ('final_cov','final_stair','final_found','deaths','hazard_deaths','battery_deaths','comms_deaths','trapped',
                       'p50','p90','avg_ms','milp_avg','milp_max','milp_n','hold','ejects',
                       'ground_avg','ground_p50','ground_p90','astar_max_avg','dist_avg','dist_p90',
-                      'peak_relays'):
+                      'peak_relays',
+                      'stranded_end','blackout_total','blackout_max','stagnation_fires',
+                      'found_building','found_open','relay_duty_ticks','battery_used','steps_ran'):
                 accs[name][k] += getattr(res, k, 0)
             # Time-to-milestone: -1 sentinel means "never reached"; only average
             # over seeds where it was reached, else record 0.
-            for k in ('t_first_found', 't_half_found', 't_all_found'):
+            for k in ('t_first_found', 't_half_found', 't_all_found', 't_cov90', 't_stair50'):
                 v = getattr(res, k, -1)
                 if v is not None and v >= 0:
                     accs[name].setdefault(f'{k}_sum', 0)
@@ -796,7 +929,7 @@ def main():
     # filter — that also drops milp_n, which the CARA summary print needs.
     _milestone_helpers = {
         f'{k}_{suffix}'
-        for k in ('t_first_found', 't_half_found', 't_all_found')
+        for k in ('t_first_found', 't_half_found', 't_all_found', 't_cov90', 't_stair50')
         for suffix in ('sum', 'n')
     }
     avgs = {name: {k: v/n_seeds for k, v in accs[name].items()
@@ -804,7 +937,7 @@ def main():
              for name in accs}
     # Time-to-milestone: mean of seeds that reached it (0 if none did)
     for name in accs:
-        for k in ('t_first_found', 't_half_found', 't_all_found'):
+        for k in ('t_first_found', 't_half_found', 't_all_found', 't_cov90', 't_stair50'):
             s = accs[name].get(f'{k}_sum', 0); c = accs[name].get(f'{k}_n', 0)
             avgs[name][k] = (s / c) if c > 0 else 0.0
     n_surv = LARGE_N_SURVIVORS
@@ -870,6 +1003,98 @@ def main():
     }
     with open(os.path.join(out_dir, 'summary.json'), 'w') as f:
         json.dump(summary, f, indent=2)
+
+    # ── CSV export for offline statistical analysis ────────────────────────────
+    # Three tidy files: one row per RUN (the unit of statistical analysis —
+    # never average before testing), one long-format per-tick time-series, and
+    # the averaged summary table. Plus the information-access audit so the
+    # fairness caveats travel with the data.
+    import csv as _csv
+
+    RUN_FIELDS = [
+        'sim', 'seed', 'steps_ran', 'completed', 'completion_step', 'stalled',
+        'total_survivors', 'final_found', 'found_building', 'found_open',
+        'final_cov', 'final_stair', 'buildings_total',
+        'deaths', 'hazard_deaths', 'battery_deaths', 'comms_deaths',
+        'stranded_end', 'blackout_total', 'blackout_max', 'trapped', 'viol',
+        'stagnation_fires', 'relay_duty_ticks', 'peak_relays', 'battery_used',
+        't_first_found', 't_half_found', 't_all_found', 't_cov90', 't_stair50',
+        'avg_ms', 'p50', 'p90',
+        'ground_avg', 'ground_p50', 'ground_p90',
+        'astar_max_avg', 'dist_avg', 'dist_p90',
+        'milp_avg', 'milp_max', 'milp_n', 'hold', 'ejects', 'wall_s',
+    ]
+    with open(os.path.join(out_dir, 'runs.csv'), 'w', newline='') as f:
+        w = _csv.writer(f)
+        w.writerow(RUN_FIELDS)
+        for name, _, _, _ in SIMS:
+            for r in results_by_name[name]:
+                row = []
+                for k in RUN_FIELDS:
+                    if k == 'sim':
+                        row.append(r.name)
+                    elif k == 'completed':
+                        row.append(int(r.completed))
+                    elif k == 'stalled':
+                        row.append(int(r.stalled))
+                    elif k == 'completion_step':
+                        row.append(r.completion_step if r.completion_step is not None else '')
+                    else:
+                        row.append(getattr(r, k, ''))
+                w.writerow(row)
+
+    TS_SERIES = [
+        ('found',               'found_ts'),
+        ('coverage_pct',        'cov_ts'),
+        ('stair_pct',           'stair_ts'),
+        ('buildings_entered',   'bldg_ts'),
+        ('redundancy_pct',      'redundancy_ts'),
+        ('zone_redundancy_pct', 'zone_redundancy_ts'),
+        ('flipflop_pct',        'flipflop_ts'),
+        ('idle_move_pct',       'idle_move_ts'),
+        ('step_ms',             'step_ms_ts'),
+        ('ground_ms',           'ground_ms_ts'),
+        ('astar_max_ms',        'astar_max_ts'),
+        ('dist_ms',             'dist_ms_ts'),
+        ('active_relays',       'relays_ts'),
+        ('milp_ms',             'milp_ms_ts'),
+    ]
+    with open(os.path.join(out_dir, 'timeseries.csv'), 'w', newline='') as f:
+        w = _csv.writer(f)
+        w.writerow(['sim', 'seed', 'step', 'metric', 'value'])
+        for name, _, _, _ in SIMS:
+            for r in results_by_name[name]:
+                for metric, attr in TS_SERIES:
+                    for s, v in getattr(r, attr, []):
+                        w.writerow([r.name, r.seed, s, metric, v])
+
+    with open(os.path.join(out_dir, 'summary.csv'), 'w', newline='') as f:
+        w = _csv.writer(f)
+        keys = sorted({k for name in avgs for k in avgs[name]})
+        w.writerow(['sim'] + keys)
+        for name, _, _, _ in SIMS:
+            w.writerow([name] + [round(float(avgs[name].get(k, 0.0)), 3) for k in keys])
+
+    AUDIT_FIELDS = ['map_sharing', 'blackout_info', 'blackout_action',
+                    'policy_terrain', 'notes']
+    with open(os.path.join(out_dir, 'info_access.csv'), 'w', newline='') as f:
+        w = _csv.writer(f)
+        w.writerow(['sim'] + AUDIT_FIELDS)
+        for name, _, _, _ in SIMS:
+            spec = _info_access_for(name)
+            w.writerow([name] + [spec.get(k, '') for k in AUDIT_FIELDS])
+
+    print(f"\n  CSV export -> {out_dir}/: runs.csv (one row per run — use this for stats),")
+    print(f"                 timeseries.csv (long format), summary.csv, info_access.csv")
+
+    # Console reminder of the fairness caveats that matter when reading results
+    print("\n  Information-access notes (full text in info_access.csv):")
+    print("    K-*          blackout gates information AND action (strictest model)")
+    print("    GNF/CARA     instant un-gated global map sharing every tick")
+    print("    GreedyRL     reward reads TRUE terrain of unseen cells + full true stair map")
+    print("    CARA-Dynamic retains autonomous shadow-escape (eject) that K forbids itself")
+    print("    J-bounded    audit rows are placeholders — verify against the J source")
+
 
     # ── Plots ──────────────────────────────────────────────────────────────────
     print("Generating plots...", end=' ', flush=True)

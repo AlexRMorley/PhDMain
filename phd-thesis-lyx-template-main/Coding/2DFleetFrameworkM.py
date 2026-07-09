@@ -1419,6 +1419,11 @@ class Robot:
         # hold in FleetSim.step() / Robot.move_step(). Exposed as a metric of
         # how long each robot has been stranded waiting for a relay.
         self.shadow_block_steps     = 0
+        # End-of-run comms-loss accounting (see FleetSim.comms_loss_report):
+        # cumulative blackout ticks over the whole run, and the single longest
+        # blackout episode. Comms loss is recorded, never treated as a death.
+        self.shadow_block_total     = 0
+        self.shadow_block_max       = 0
 
     def _reveal_all(self):
         """
@@ -5889,6 +5894,7 @@ class FleetSim:
             self._force_cbba = True                  # rebid at next tick's cadence check
             self._stagnation_boost_until = self.timestep + STAGNATION_BOOST
             self._last_progress_tick = self.timestep # restart the no-progress clock
+            self._stagnation_fires = getattr(self, '_stagnation_fires', 0) + 1
             print(f"[STAGNATION] t={self.timestep} "
                   f"cov={known_cells / max(1, _total_cells):.2f} "
                   f"found={found_now}/{len(self.survivors)} — reset {n_reset} robots, "
@@ -6014,19 +6020,13 @@ class FleetSim:
                     if cl_key:
                         self._cluster_last_covered_zones[cl_key] = self.timestep
 
-        # ── Revive: robots that lost comms come back if relay now covers their zone ──
-        for r in self.robots:
-            if r.active: continue
-            if r.hazard_killed: continue          # permanent — no revive from temp/rad
-            if r.death_reason != "lost comms — relay dropped": continue
-            z = self.cell_to_zone(r.pos[0], r.pos[1])
-            if self.relay_ok_extended(z):
-                r.active       = True
-                r.death_reason = None
-                r.path         = []
-                r.goal         = None
-                r.goal_commit  = 0
-                self.dead_robots = [(n,d) for n,d in self.dead_robots if n != r.name]
+        # (The legacy comms-death REVIVE block that lived here is removed.
+        # Under the comms-loss-hold model a robot is never deactivated for
+        # losing its link — it freezes in place, still active — so no code
+        # path sets death_reason == "lost comms — relay dropped" any more and
+        # the revive test could never fire. Comms loss is instead RECORDED at
+        # end of run via FleetSim.comms_loss_report(): per-robot blackout
+        # totals plus whoever is still stranded when the simulation ends.)
 
         # ── PHASE 2: task management + movement for non-relay robots ──
         # Safety sweep: any explorer in uncovered shadow triggers an emergency.
@@ -6185,6 +6185,9 @@ class FleetSim:
             # robot resumes normally the moment a disk re-covers its cell.
             if r._evacuating():
                 r.shadow_block_steps = getattr(r, 'shadow_block_steps', 0) + 1
+                r.shadow_block_total = getattr(r, 'shadow_block_total', 0) + 1
+                r.shadow_block_max   = max(getattr(r, 'shadow_block_max', 0),
+                                           r.shadow_block_steps)
                 r.path = []          # no stale reservations while frozen
                 continue
 
@@ -6203,6 +6206,35 @@ class FleetSim:
 
         alive = any(r.active and r.battery>0 for r in self.robots)
         return alive
+
+    def comms_loss_report(self):
+        """End-of-run comms-loss recording (replaces the old comms DEATH model).
+
+        Under the comms-loss hold, losing the link never deactivates a robot —
+        it freezes until a relay disk re-covers its cell. So instead of a
+        death_reason, comms loss is RECORDED: call this once when the run ends
+        to get per-robot blackout accounting plus whoever is still stranded at
+        termination. Belief-safe: reads only the sim's own coverage state.
+
+        Returns a dict:
+          stranded_at_end     — names of active robots ending the run in blackout
+          blackout_ticks_total— fleet-wide robot-ticks spent frozen in blackout
+          blackout_ticks_max  — longest single blackout episode by any robot
+          per_robot           — {name: {'total': .., 'max': .., 'at_end': bool}}
+        """
+        per = {}
+        for r in self.robots:
+            tot = int(getattr(r, 'shadow_block_total', 0))
+            mx  = int(getattr(r, 'shadow_block_max', 0))
+            at_end = bool(r.active and r._evacuating())
+            if tot or at_end:
+                per[r.name] = {'total': tot, 'max': mx, 'at_end': at_end}
+        return {
+            'stranded_at_end':      [n for n, d in per.items() if d['at_end']],
+            'blackout_ticks_total': sum(d['total'] for d in per.values()),
+            'blackout_ticks_max':   max((d['max'] for d in per.values()), default=0),
+            'per_robot':            per,
+        }
 
     def _manage_task_zone(self, r):
         """Select and maintain a task zone for robot r."""

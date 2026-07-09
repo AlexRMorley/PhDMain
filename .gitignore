@@ -8,3 +8,27 @@ phd-thesis-lyx-template-main/Coding/**/*.avi
 phd-thesis-lyx-template-main/Coding/**/*.npy
 phd-thesis-lyx-template-main/Coding/**/*.npz
 phd-thesis-lyx-template-main/Coding/**/*.pkl
+
+# Generated Coding outputs
+phd-thesis-lyx-template-main/Coding/benchmark_results*/
+phd-thesis-lyx-template-main/Coding/poa_results/
+phd-thesis-lyx-template-main/Coding/**/*.png
+phd-thesis-lyx-template-main/Coding/**/*.mp4
+phd-thesis-lyx-template-main/Coding/**/*.avi
+phd-thesis-lyx-template-main/Coding/**/*.npy
+phd-thesis-lyx-template-main/Coding/**/*.npz
+phd-thesis-lyx-template-main/Coding/**/*.pkl
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Large ROS / scan data
+phd-thesis-lyx-template-main/Coding/ROSBAG/
+*.bag
+*.ply
+
+# Generated benchmark outputs
+phd-thesis-lyx-template-main/Coding/benchmark_results*/
+phd-thesis-lyx-template-main/Coding/poa_results/
+*.png
