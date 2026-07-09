@@ -32,3 +32,17 @@ phd-thesis-lyx-template-main/Coding/ROSBAG/
 phd-thesis-lyx-template-main/Coding/benchmark_results*/
 phd-thesis-lyx-template-main/Coding/poa_results/
 *.png
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Large ROS / scan data
+phd-thesis-lyx-template-main/Coding/ROSBAG/
+*.bag
+*.ply
+
+# Generated benchmark outputs
+phd-thesis-lyx-template-main/Coding/benchmark_results*/
+phd-thesis-lyx-template-main/Coding/poa_results/
+*.png

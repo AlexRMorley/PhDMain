@@ -41,9 +41,10 @@ OUTPUTS (to --out dir):
     scaling_L_curve.png     — quick-look scaling plots.
 
 Usage:
-    python3 ScalingBenchL.py --seeds 3 --steps 1500
+    python3 ScalingBenchL.py --seeds 3 --steps 1500       # seeds 0,1,2
     python3 ScalingBenchL.py --quick                     # tiny smoke
     python3 ScalingBenchL.py --sizes 10,20,50 --steps 800
+    python3 ScalingBenchL.py --seeds 1,2,7,42             # explicit seeds
     PYTHONHASHSEED=0 python3 ScalingBenchL.py --seeds 5  # reproducible
 """
 import argparse, csv, importlib.util, math, os, random, sys, time
@@ -52,11 +53,27 @@ import numpy as np
 
 # ── Load Framework L ─────────────────────────────────────────────────────────
 _HERE = os.path.dirname(os.path.abspath(__file__))
+_SEARCH_DIRS = [_HERE, os.path.join(_HERE, '..'), os.path.join(_HERE, '..', 'outputs'),
+                '/mnt/user-data/outputs', '/home/claude']
+
+def _find(*names):
+    for name in names:
+        for folder in _SEARCH_DIRS:
+            p = os.path.join(folder, name)
+            if os.path.exists(p):
+                return os.path.abspath(p)
+    print("\nERROR: Cannot find any of:", list(names))
+    print("Searched folders:")
+    for d in _SEARCH_DIRS:
+        print("  " + d)
+    sys.exit(1)
+
 def _load(path, name):
     spec = importlib.util.spec_from_file_location(name, path)
     mod = importlib.util.module_from_spec(spec); sys.modules[name] = mod
     spec.loader.exec_module(mod); return mod
-L = _load(os.path.join(_HERE, '2DFleetFrameworkM.py'), 'FrameworkM')
+L = _load(_find('2DFleetFrameworkM.py', 'FleetFrameworkM.py',
+                 'FleetFrameworkL.py', 'hetero_robot_fleet_sim.py'), 'FrameworkM')
 
 # ── A* timing wrap (module-global accumulator, reset each step) ───────────────
 _ASTAR = {'sum': 0.0, 'max': 0.0, 'n': 0}
@@ -365,6 +382,16 @@ def plot_curve(agg, path):
     fig.suptitle('Framework L — fleet-size scaling', fontsize=13, fontweight='bold')
     fig.tight_layout(); fig.savefig(path, dpi=120, bbox_inches='tight'); plt.close(fig)
 
+def _parse_seeds(spec):
+    """--seeds accepts either a COUNT ('10' -> seeds 0..9) or an EXPLICIT
+    comma list ('1,2,7,42' -> exactly those seeds), same style as --sizes.
+    A bare count is what most runs want; an explicit list lets you add specific
+    seeds to an existing dataset without renumbering or rerunning 0..N-1."""
+    spec = str(spec).strip()
+    if ',' in spec:
+        return [int(s) for s in spec.split(',') if s.strip() != '']
+    return list(range(int(spec)))
+
 # ── Aggregate across seeds ───────────────────────────────────────────────────
 def aggregate(rows):
     by_n = defaultdict(list)
@@ -397,7 +424,10 @@ def aggregate(rows):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--sizes', type=str, default='10,20,30,40,50,60,70,80,90,100,1000')
-    p.add_argument('--seeds', type=int, default='1,2,3,4,5,6,7,8,9,10')
+    p.add_argument('--seeds', type=str, default='10',
+                    help="Either a COUNT (e.g. '10' -> seeds 0..9) or an "
+                         "explicit comma list (e.g. '1,2,7,42') to add "
+                         "specific seeds without renumbering. Default: 10.")
     p.add_argument('--steps', type=int, default=1500)
     p.add_argument('--fixed-grid', action='store_true',
                     help='hold map at 200×200 (density rises with N) instead of density-held growth')
@@ -407,11 +437,12 @@ def main():
     p.add_argument('--out', type=str, default='scaling_L_out')
     a = p.parse_args()
     if a.quick:
-        a.sizes = '10,20'; a.seeds = 1; a.steps = 120
+        a.sizes = '10,20'; a.seeds = '1'; a.steps = 120
     sizes = [int(s) for s in a.sizes.split(',')]
+    seed_list = _parse_seeds(a.seeds)
     os.makedirs(a.out, exist_ok=True)
 
-    print(f"Framework L scaling | sizes={sizes} | seeds={a.seeds} | steps={a.steps} "
+    print(f"Framework L scaling | sizes={sizes} | seeds={seed_list} | steps={a.steps} "
           f"| {'FIXED 200×200' if a.fixed_grid else 'density-held grid'}")
     rows = []
     skipped = []
@@ -430,7 +461,7 @@ def main():
             skipped.append(dict(n_requested=n, grid=g, cells=est_cells,
                                  reason='exceeds_sim_memory_ceiling'))
             continue
-        for s in range(a.seeds):
+        for s in seed_list:
             print(f"  N={n:<5} grid={g}×{g} seed={s} ... ", end='', flush=True)
             try:
                 r = run_one(n, s, a.steps, a.fixed_grid)
@@ -449,7 +480,7 @@ def main():
     if not rows:
         print("no rows — aborting"); return
     agg = aggregate(rows)
-    cfg = dict(framework='L (belief-safe K)', sizes=sizes, seeds=a.seeds, steps=a.steps,
+    cfg = dict(framework='L (belief-safe K)', sizes=sizes, seeds=seed_list, steps=a.steps,
                grid_policy=('fixed 200x200' if a.fixed_grid else 'density-held (~800 cells/robot)'),
                type_mix='Legged26/Drone34/Boat16/Rover24 %',
                survivor_density=f'{SURV_PER_CELL:.6f} per cell',
