@@ -397,7 +397,7 @@ def aggregate(rows):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--sizes', type=str, default='10,20,30,40,50,60,70,80,90,100,1000')
-    p.add_argument('--seeds', type=int, default=3)
+    p.add_argument('--seeds', type=int, default='1,2,3,4,5,6,7,8,9,10')
     p.add_argument('--steps', type=int, default=1500)
     p.add_argument('--fixed-grid', action='store_true',
                     help='hold map at 200×200 (density rises with N) instead of density-held growth')

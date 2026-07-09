@@ -158,20 +158,28 @@ LEASE_T        = 50
 COOLDOWN_T     = 40   # reduced from 80 — shorter blacklist so zones get reassigned faster
 NO_PROGRESS_K  = 30
 IDLE_RESCUE_K  = 10   # reduced from 15 — faster rescue of idle robots
-# Ticks a robot inside UNCOVERED shadow must fail to plan before it evacuates.
-# Evacuating on the first blocked plan pulled robots out of buildings they
-# were productively sweeping whenever coverage lapsed for a moment (coverage
-# 78%->69%). Waiting a few ticks lets a walking relay disk re-cover them,
-# while still guaranteeing no robot is stranded indefinitely (observed 270+
-# tick deadlocks before any evacuation existed).
-# Ticks a robot inside UNCOVERED shadow must fail to plan before evacuating.
-# Uses its OWN counter (shadow_block_steps), not stuck_steps: the idle-rescue
-# path zeroes stuck_steps when it fires, so patience >= IDLE_RESCUE_K could
-# never be reached and stranded robots never evacuated (Drone0 sat 305 ticks).
-# Long enough that a walking relay disk can re-cover a robot mid-sweep
-# (evacuating on the first blocked plan cost 78%->69% coverage), short enough
-# that nothing deadlocks.
-EVAC_PATIENCE  = 15
+# ── Comms-loss hold (no autonomous evacuation) ───────────────────────────────
+# A robot standing in radio shadow with NO relay coverage has lost telemetry.
+# Design assumption: without comms it cannot be re-tasked and it does NOT
+# auto-path out of the structure on its own belief — autonomous escape was
+# never an assumption of this comms model. The robot HOLDS POSITION until a
+# relay disk physically re-covers its cell. Fleet-side recovery is the
+# shadow_at_risk safety sweep in step(), which force-elects the nearest
+# eligible relay for any stranded explorer (and, if a settled relay's disk
+# still doesn't reach a victim, elects an additional one targeted at the
+# victim's own zone). The former EVAC_PATIENCE self-evacuation mechanism —
+# which let uncovered robots A*-path out with the comms gate lifted — has
+# been removed as inconsistent with that model.
+
+# ── Late-stage stagnation watchdog ───────────────────────────────────────────
+# Late-game shaping (goal hysteresis, docile patience) can over-stabilise:
+# if nothing new has been learned for a long stretch late in the mission the
+# fleet is stuck in a bad equilibrium (stale blacklists, exhausted bundles,
+# LOITER lock), not being patient. Progress = growth in fleet-known cells or
+# found survivors — belief-only signals, no world truth.
+STAGNATION_COV   = 0.60   # watchdog arms once union coverage passes this
+STAGNATION_K     = 150    # ticks with zero progress before the rescue fires
+STAGNATION_BOOST = 200    # rescue window: fast patience, no stickiness; also cooldown
 
 # Relay
 RELAY_MIN_HOLD     = 150       # ticks a relay must stay before being demoted
@@ -1395,9 +1403,22 @@ class Robot:
         self._reachable_tick:  int  = -999
         self.zone_frontier_signal   = 0.0
         self.zone_frontier_count    = 0
-        self.terrain_R              = max(3, round(24 / CELL_SIZE))  # ~24m physical sensor range
-
-        if self._reveal_all(): self._recompute_chunked()
+        # Sensor range in CELLS. CELL_SIZE is metres-per-cell for this purpose.
+        # NOTE: the initial sensor sweep is deliberately NOT performed here.
+        # Scenario modules (e.g. ExtremeScenario) wrap Robot.__init__ to
+        # override terrain_R AFTER it returns; sweeping during construction
+        # therefore used the pre-override radius, so the starting belief — and
+        # hence the whole trajectory — depended on a value the scenario was
+        # about to replace. Because the GUI passes its DISPLAY pixel size as
+        # `cell`, this made `--px` silently change the simulation. FleetSim
+        # now performs the first sweep after all robots are constructed and
+        # their radii are final. See FleetSim._initial_sensor_sweep().
+        self.terrain_R              = max(3, round(24 / CELL_SIZE))
+        # Ticks spent in comms blackout (standing in uncovered shadow).
+        # The robot HOLDS in place while this is non-zero — see the comms-loss
+        # hold in FleetSim.step() / Robot.move_step(). Exposed as a metric of
+        # how long each robot has been stranded waiting for a relay.
+        self.shadow_block_steps     = 0
 
     def _reveal_all(self):
         """
@@ -1650,12 +1671,11 @@ class Robot:
     def set_goal(self, tgt, escape=False) -> bool:
         """Plan to tgt. Returns True if a valid path was found.
 
-        escape=True lifts the uncovered-shadow hard block for THIS plan only.
-        Used exclusively when a robot is ALREADY standing inside uncovered
-        shadow (coverage moved after it entered) and must be allowed to walk
-        out. It can leave uncovered shadow this way; it can never enter it,
-        because the caller only sets escape when _evacuating() is already true.
-        All terrain, hazard, capability and traffic costs still apply."""
+        `escape` is retained for signature compatibility but IGNORED: under
+        the comms model a robot standing in uncovered shadow has lost
+        telemetry and cannot be re-tasked or plan at all — it holds until a
+        relay disk re-covers it (see the comms-loss hold in move_step). There
+        is therefore no sanctioned way to lift the uncovered-shadow gate."""
         if tgt == self.pos:
             self.goal = None; self.path = []; return False
 
@@ -1686,8 +1706,7 @@ class Robot:
             temp_limit=self.temp_limit,
             rad_limit=self.rad_limit,
             radio_shadow=self.sim.radio_shadow,
-            relay_ok_fn=((lambda cell: True) if escape
-                          else self.sim._cell_is_relay_covered),
+            relay_ok_fn=self.sim._cell_is_relay_covered,
             cell_to_zone_fn=self.sim.cell_to_zone,
             global_cov=self.sim.global_cov,
             unk_pen=unk_pen, info_w=info_w,
@@ -1743,6 +1762,20 @@ class Robot:
         if not self.active or self.battery <= 0:
             self.active = False
             self.bundle = []; self.assigned_zones = []; self.task_zone = None
+            return False
+
+        # ── COMMS-LOSS HOLD (hard gate) ───────────────────────────────────
+        # Standing in uncovered shadow = telemetry lost. The robot cannot be
+        # re-tasked and does NOT auto-path out on its own belief — autonomous
+        # escape is not an assumption of this comms model. It holds position
+        # with its plan cleared (so no stale reservations are written);
+        # recovery is fleet-side: the shadow_at_risk sweep in FleetSim.step()
+        # dispatches a relay whose walking disk physically re-covers this
+        # cell, at which point the robot resumes normally.
+        px, py = self.pos
+        if (self.sim.radio_shadow[px, py]
+                and not self.sim._cell_is_relay_covered((px, py))):
+            self.path = []
             return False
 
         if not self.goal or not self.path:
@@ -1863,19 +1896,18 @@ class Robot:
                 # ground into genuinely uncovered shadow (observed: Legged33
                 # crossing into uncovered shadow at t=236 and continuing
                 # deeper). Motion and planning must agree on the same truth.
-                # Exception: if the robot is ALREADY standing inside uncovered
-                # shadow it is evacuating (sanctioned — see set_goal(escape=)).
-                # Invalidating its path every tick would freeze it in place, so
-                # an evacuating robot may execute its outward path. It cannot
-                # ENTER uncovered shadow this way, only leave.
-                if self._evacuating():
-                    continue
+                # NO exceptions: with autonomous evacuation removed (comms-loss
+                # hold), no plan may ever traverse uncovered shadow — entering
+                # from outside is blocked here and by the A* gate, and a robot
+                # already inside holds still rather than walking anywhere.
                 if not self.sim._cell_is_relay_covered((x, y)): return True
         return False
 
     def _evacuating(self) -> bool:
         """True when this robot currently occupies an uncovered shadow cell —
-        i.e. it is inside and must be allowed to walk out."""
+        i.e. it is in comms blackout. (Name retained for compatibility; the
+        robot now HOLDS in place here until a relay disk re-covers it, it no
+        longer walks itself out.)"""
         px, py = self.pos
         if not self.sim.radio_shadow[px, py]:
             return False
@@ -1923,6 +1955,7 @@ class FleetSim:
 
         self._build_radio_shadow()
         self._build_robots()
+        self._initial_sensor_sweep()
         self._build_survivors()
 
         # ── Prior survivor density (declared before mission, legitimate ──────
@@ -2075,6 +2108,15 @@ class FleetSim:
         # at each time step, eliminating head-ons and corridor deadlocks.
         self._reservations: dict = {}   # (x, y, t_offset) -> True
         self._reservation_window = 8    # look-ahead depth
+
+        # ── Late-stage stagnation watchdog state ─────────────────────────────
+        # Progress = growth in fleet-known cells or found survivors (belief-
+        # only signals). See the STAGNATION_* constants for the rationale.
+        self._last_progress_tick     = 0
+        self._known_cells_prev       = 0
+        self._found_prev             = 0
+        self._stagnation_boost_until = 0
+        self._force_cbba             = False
 
         self._decide_roles()          # build _last_clusters before first CBBA
         self._assign_zones_cbba()     # now relay utility is correct from t=0
@@ -2377,6 +2419,74 @@ class FleetSim:
         unk_est = int(np.count_nonzero(unk & shd))
         n_est   = int(np.count_nonzero(known_stair)) + unk_est
         return n_est, unk_est
+
+    def _trav_mask(self, caps_mask):
+        """Boolean (W,H): cells this capability set may occupy, from belief.
+        Unknown counts as traversable (optimistic, as in A*)."""
+        key = ('trav', caps_mask, self.timestep)
+        cache = getattr(self, '_trav_cache', None)
+        if cache is not None and cache[0] == key:
+            return cache[1]
+        codes = self.union_belief
+        m = np.zeros(codes.shape, dtype=bool)
+        for c in range(6):
+            if traversable_code(c, caps_mask):
+                m |= (codes == c)
+        self._trav_cache = (key, m)
+        return m
+
+    def _safety_dist_field(self, caps_mask):
+        """
+        Multi-source BFS distance (in cells) from every cell to the nearest
+        SAFE cell, where safe = not radio shadow, or shadow currently inside a
+        relay coverage disk. Cells this robot type cannot occupy are
+        impassable. -1 = no route.
+
+        NOTE: retained as a diagnostics/metrics utility only. It is no longer
+        consumed by any movement code — the autonomous-evacuation mechanism
+        that used it has been removed (comms-loss hold: a robot in uncovered
+        shadow holds position rather than pathing itself out).
+        """
+        union = self._active_relay_coverage_union()
+        key = (id(union), caps_mask)
+        cache = getattr(self, '_safety_field_cache', None)
+        if cache is not None and cache[0] == key:
+            return cache[1]
+        W, H = self.world.w, self.world.h
+        cov = self._active_relay_coverage_arr()
+        safe = (~self.radio_shadow) | cov
+        blocked = ~self._trav_mask(caps_mask)
+        dist = np.full((W, H), -1, dtype=np.int32)
+        dq = deque()
+        xs, ys = np.nonzero(safe & ~blocked)
+        for x, y in zip(xs.tolist(), ys.tolist()):
+            dist[x, y] = 0
+            dq.append((x, y))
+        while dq:
+            x, y = dq.popleft()
+            d = dist[x, y] + 1
+            if x + 1 < W and dist[x+1, y] < 0 and not blocked[x+1, y]:
+                dist[x+1, y] = d; dq.append((x+1, y))
+            if x - 1 >= 0 and dist[x-1, y] < 0 and not blocked[x-1, y]:
+                dist[x-1, y] = d; dq.append((x-1, y))
+            if y + 1 < H and dist[x, y+1] < 0 and not blocked[x, y+1]:
+                dist[x, y+1] = d; dq.append((x, y+1))
+            if y - 1 >= 0 and dist[x, y-1] < 0 and not blocked[x, y-1]:
+                dist[x, y-1] = d; dq.append((x, y-1))
+        self._safety_field_cache = (key, dist)
+        return dist
+
+    def _initial_sensor_sweep(self):
+        """
+        First sensor sweep for every robot, run once after ALL robots exist and
+        their terrain_R is final (scenario wrappers have applied). Previously
+        each Robot swept inside its own __init__, before scenario overrides,
+        which made the starting belief depend on CELL_SIZE — a rendering
+        parameter. Behaviour is otherwise unchanged.
+        """
+        for r in self.robots:
+            if r._reveal_all():
+                r._recompute_chunked()
 
     def _zone_stair_likelihood(self, zone):
         """
@@ -2741,11 +2851,10 @@ class FleetSim:
         from two nearby relays merges naturally rather than double-counting.
 
         NOTE: the emergency "shadow_at_risk" safety sweep in step() populates
-        self.relay_ok for an ENTIRE physical cluster directly (every zone
-        already seeded at hop 0) before calling this method, as a deliberate,
-        disclosed exception -- when an explorer is stranded with no relay, the
-        system restores their comms immediately rather than enforcing the
-        idealised range model against a life-safety case.
+        self.relay_ok from ACTUAL per-cell disk coverage before calling this
+        method — it no longer force-marks any zone the disks do not really
+        cover (the former LIFE-SAFETY zone force-mark is removed along with
+        autonomous evacuation).
         """
         seeds = {z for z, ok in self.relay_ok.items() if ok}
         flooded = set(seeds)
@@ -5440,7 +5549,11 @@ class FleetSim:
         # changes which robot is suited to a task (capability + zone assignment
         # are decided upstream by the role game and CBBA), so it cannot make a
         # wrong locomotion type take work it shouldn't, nor silence a useful one.
-        if r.goal is not None:
+        # Suspended during the stagnation boost window: stickiness is one of
+        # the shaping terms that can hold the fleet in the stuck equilibrium
+        # the watchdog fires on, so robots must be free to re-target.
+        if (r.goal is not None
+                and self.timestep >= getattr(self, '_stagnation_boost_until', 0)):
             cov = getattr(self, 'global_cov', 0.0)
             stick = 6.0 + 30.0 * max(0.0, cov - 0.85) / 0.15   # ~6 early → ~36 near 100%
             near_old = (np.abs(cx_a - r.goal[0]) + np.abs(cy_a - r.goal[1]) <= 4).astype(np.float32)
@@ -5488,7 +5601,8 @@ class FleetSim:
             self._union_cov_tick  = self.timestep
         union_cov = self._union_cov_cache
         cbba_cadence = 20 if union_cov > 0.70 else 50
-        needs_cbba = (self.timestep % cbba_cadence == 0)
+        needs_cbba = (self.timestep % cbba_cadence == 0) or getattr(self, '_force_cbba', False)
+        self._force_cbba = False   # consume the stagnation watchdog's one-shot flag
 
         # LOITER rescue: any robot that has been LOITER for >60 ticks gets
         # its bundle cleared — prevents permanent loiter lock.
@@ -5614,6 +5728,14 @@ class FleetSim:
         t = self.timestep
         for r in active_robots:
             if not r.outbox: continue
+            # Comms gate (fix): a robot in shadow WITHOUT relay coverage has no
+            # link at all — rule 3 above. Previously its outbox was still
+            # shipped this tick with the relay delay applied, so data leaked
+            # out of a blackout the model says is total. The outbox is now
+            # retained locally until the robot is comms-capable again (exits
+            # the shadow, or a relay bridges its zone), matching rule 3.
+            if self.radio_shadow[r.pos[0], r.pos[1]] and not comms_ok(r):
+                continue
             delay = 0 if not self.radio_shadow[r.pos[0], r.pos[1]] else RELAY_COMMS_DELAY
             deliver_at = t + delay
             # Wrap as (deliver_at, msg_tuple) — avoids mutating the tuple
@@ -5728,6 +5850,49 @@ class FleetSim:
                 if (rx-sx)**2 + (ry-sy)**2 > R*R: continue
                 if self._has_los(rx, ry, sx, sy, r_inside_building):
                     self.found.add(s)
+
+        # ── Late-stage stagnation watchdog ────────────────────────────────────
+        # Progress = growth in fleet-KNOWN cells or newly found survivors —
+        # belief-only signals, no world truth (the survivor count is the
+        # mission spec, not an oracle position). Once coverage is high, a long
+        # stretch with zero progress while survivors remain means the fleet is
+        # stuck in a bad equilibrium (stale blacklists, exhausted bundles,
+        # LOITER lock, over-strong late-game hysteresis) — not being patient.
+        # The rescue clears that stale per-robot state, forces a CBBA rebid,
+        # and opens a boost window during which goal-stickiness and late-game
+        # patience are suspended (see _choose_goal / _move_robot). The window
+        # doubles as a cooldown so the watchdog cannot re-fire every tick.
+        known_cells = int(np.count_nonzero(self.union_belief != T_UNKNOWN))
+        found_now   = len(self.found)
+        if (known_cells > getattr(self, '_known_cells_prev', 0)
+                or found_now > getattr(self, '_found_prev', 0)):
+            self._last_progress_tick = self.timestep
+        self._known_cells_prev = known_cells
+        self._found_prev       = found_now
+        _total_cells = self.world.w * self.world.h
+        if (known_cells / max(1, _total_cells) >= STAGNATION_COV
+                and found_now < len(self.survivors)
+                and self.timestep - getattr(self, '_last_progress_tick', 0) >= STAGNATION_K
+                and self.timestep >= getattr(self, '_stagnation_boost_until', 0)):
+            n_reset = 0
+            for r2 in self.robots:
+                if not r2.active or r2.role == Role.RELAY:
+                    continue
+                if r2._evacuating():
+                    continue          # stranded in blackout: its idleness is intentional
+                r2.blacklist = {}     # stale blacklists are the most common lock
+                if r2.goal is None or r2.role == Role.LOITER:
+                    r2.bundle = []; r2.assigned_zones = []
+                    r2.task_zone = None
+                    r2.goal = None; r2.path = []; r2.goal_commit = 0
+                n_reset += 1
+            self._force_cbba = True                  # rebid at next tick's cadence check
+            self._stagnation_boost_until = self.timestep + STAGNATION_BOOST
+            self._last_progress_tick = self.timestep # restart the no-progress clock
+            print(f"[STAGNATION] t={self.timestep} "
+                  f"cov={known_cells / max(1, _total_cells):.2f} "
+                  f"found={found_now}/{len(self.survivors)} — reset {n_reset} robots, "
+                  f"forced CBBA rebid, boost window {STAGNATION_BOOST} ticks")
 
         # ── role decisions ──
         # Run every tick — relay demotion safety is handled inside _move_relay
@@ -5867,11 +6032,16 @@ class FleetSim:
         # Safety sweep: any explorer in uncovered shadow triggers an emergency.
         # Rather than killing the explorer, we force-elect the nearest eligible
         # robot as relay for their cluster so they stay covered.
+        # Victims are found by PER-CELL truth (r._evacuating(): standing in
+        # shadow with no active relay disk covering that exact cell) — the same
+        # test the comms-loss hold uses. The previous zone-granular
+        # relay_ok_extended test could declare a robot "fine" because 30% of
+        # its zone was covered while its own cell was not, leaving it frozen by
+        # the hold with no rescue ever dispatched.
         shadow_at_risk = [
             r for r in self.robots if r.active and r.role != Role.RELAY
             and r.battery > 0
-            and self.radio_shadow[r.pos[0], r.pos[1]]
-            and not self.relay_ok_extended(self.cell_to_zone(r.pos[0], r.pos[1]))
+            and r._evacuating()
         ]
         if shadow_at_risk:
             # Group victims by cluster and find the best available relay per cluster
@@ -5884,13 +6054,24 @@ class FleetSim:
                     victim_clusters.setdefault(cid, []).append(vr)
 
             for cid, victims in victim_clusters.items():
-                # Already have a relay for this cluster? Just update coverage.
-                has_relay = any(
-                    r.role == Role.RELAY
+                # Relays already assigned to this cluster. A serving relay only
+                # counts as "handling it" while still EN ROUTE to its anchor:
+                # once anchored its disk is static, and the victims are — by
+                # the per-cell definition above — outside every active disk.
+                # In that case elect an ADDITIONAL relay aimed at the victim's
+                # own zone, capped at 3 per cluster so one pathological pocket
+                # cannot drain the whole fleet into relay duty.
+                serving = [
+                    r for r in self.robots if r.active
+                    and r.role == Role.RELAY
                     and self._shadow_cluster_id.get(r.task_zone, -1) == cid
-                    for r in self.robots if r.active
+                ]
+                relay_pending = any(
+                    getattr(r2, 'relay_anchor', None) is None
+                    or r2.pos != r2.relay_anchor
+                    for r2 in serving
                 )
-                if not has_relay:
+                if (not serving) or (not relay_pending and len(serving) < 3):
                     # Find nearest non-relay robot that can reach the shadow border
                     cluster_zones = [z for z, c in self._shadow_cluster_id.items() if c == cid]
                     cx = int(sum(z[0]*self.zone_w_cells + self.zone_w_cells//2 for z in cluster_zones) / max(1,len(cluster_zones)))
@@ -5918,7 +6099,15 @@ class FleetSim:
                                 if not task.owners: task.status='free'; task.expires_at=0
                         best_r.bundle = []; best_r.assigned_zones = []
                         best_r.role = Role.RELAY
-                        best_r.task_zone = cluster_zones[0] if cluster_zones else None
+                        # Target the VICTIM'S OWN zone, not the cluster's first
+                        # zone: an additional relay is elected precisely because
+                        # the settled disks don't reach the victim, so its
+                        # anchor search must be pulled toward the victim's side
+                        # of the building rather than wherever zone [0] happens
+                        # to sit.
+                        vz0 = self.cell_to_zone(victims[0].pos[0], victims[0].pos[1])
+                        best_r.task_zone = (vz0 if vz0 is not None
+                                            else (cluster_zones[0] if cluster_zones else None))
                         best_r.relay_hold_until = self.timestep + RELAY_MIN_HOLD
                         best_r.role_locked_until = self.timestep + RELAY_MIN_HOLD
                         best_r.relay_last_occupied = self.timestep
@@ -5953,17 +6142,13 @@ class FleetSim:
                 if n_cov / tot >= _COVERAGE_FRAC_THRESHOLD:
                     self.relay_ok[z2] = True
 
-            # LIFE-SAFETY EXCEPTION (deliberate, disclosed): a stranded
-            # explorer's OWN zone is force-marked relay_ok so it is never
-            # trapped by the comms gate and can plan its way out. This is
-            # scoped to the victims' occupied zones only -- not the cluster --
-            # so it restores the stranded robot's comms without fabricating
-            # coverage across buildings the relays cannot reach.
-            for vr in shadow_at_risk:
-                if not vr.active: continue
-                vz = self.cell_to_zone(vr.pos[0], vr.pos[1])
-                if vz is not None:
-                    self.relay_ok[vz] = True
+            # (The former LIFE-SAFETY force-mark — setting relay_ok[True] on
+            # each victim's occupied zone so it could plan its way out — is
+            # REMOVED along with autonomous evacuation. Fabricating coverage
+            # the disks do not provide contradicts the comms model this fix
+            # enforces: a blacked-out robot cannot plan at all. Victims now
+            # hold in place, and recovery is strictly physical — the relay
+            # elected above walks in until its disk actually covers them.)
             self._compute_relay_flood()
 
         # Per-tick goal reservations: when robot A picks a goal this tick,
@@ -5988,6 +6173,19 @@ class FleetSim:
                     r.bundle = []
                     r.assigned_zones = []
                     r.task_zone = None
+                continue
+
+            # ── COMMS-LOSS HOLD (fleet side) ──────────────────────────────
+            # Robot stands in uncovered shadow: telemetry lost. It cannot be
+            # re-tasked and does not move — no task management, no goal
+            # selection, no A*. Its zone claims and bundle stay FROZEN so
+            # CBBA ownership survives the blackout without churn, and its
+            # failed-goal blacklist is untouched. The safety sweep above has
+            # already dispatched (or topped up) a relay for its cluster; the
+            # robot resumes normally the moment a disk re-covers its cell.
+            if r._evacuating():
+                r.shadow_block_steps = getattr(r, 'shadow_block_steps', 0) + 1
+                r.path = []          # no stale reservations while frozen
                 continue
 
             self._manage_task_zone(r)
@@ -6317,6 +6515,14 @@ class FleetSim:
 
     def _move_robot(self, r, occupied):
         """Goal selection and movement for non-relay active robots."""
+        # Comms-loss hold, defense in depth: the PHASE-2 loop in step() already
+        # skips robots standing in uncovered shadow before calling this method,
+        # and move_step() itself refuses to move one. Keep a local guard so no
+        # other caller (baselines, tests) can task or move a blacked-out robot.
+        if r._evacuating():
+            r.path = []
+            return
+        r.shadow_block_steps = 0     # covered again — blackout over
         # pick new goal if needed
         # NOTE: also replan when path is empty but goal exists — this happens
         # after a sidestep clears the path; without this the robot freezes
@@ -6357,6 +6563,11 @@ class FleetSim:
         # re-selection timing, never capability/zone assignment.
         _cov = getattr(self, 'global_cov', 0.0)
         _patience = 5 + int(25 * max(0.0, _cov - 0.85) / 0.15)   # 5 early → 30 near 100%
+        # Stagnation boost window: suspend late-game docility so robots
+        # re-select quickly and the fleet can break out of the stuck
+        # equilibrium the watchdog just detected.
+        if self.timestep < getattr(self, '_stagnation_boost_until', 0):
+            _patience = 5
         need_new = (r.goal is None or r.pos == r.goal or
                     (r.goal_commit == 0 and r.stuck_steps > _patience))
         if need_new:
@@ -6373,22 +6584,6 @@ class FleetSim:
                 if all_exhausted:
                     r.bundle = []; r.assigned_zones = []; r.blacklist = {}
             tgt = self._choose_goal(r)
-            if tgt is None and r._evacuating():
-                r.shadow_block_steps = getattr(r, 'shadow_block_steps', 0) + 1
-            elif not r._evacuating():
-                r.shadow_block_steps = 0
-            if tgt is None and r._evacuating() and getattr(r, 'shadow_block_steps', 0) >= EVAC_PATIENCE:
-                # Inside uncovered shadow with no proposable goal: the comms
-                # gate blocks every candidate. Walk out under the sanctioned
-                # escape rule rather than sitting still indefinitely.
-                evac_tgt = (self._nearest_reachable_open_frontier(r)
-                            or self._nearest_open_cell(r))
-                if evac_tgt is not None and r.set_goal(evac_tgt, escape=True):
-                    r.goal = evac_tgt
-                    r.goal_commit = max(getattr(r, 'goal_commit', 0), 20)
-                    r.shadow_block_steps = 0
-                    r.move_step(occupied)
-                    return
             if tgt is None:
                 # Robot has nothing to do — increment idle counter.
                 # After IDLE_RESCUE_K ticks with no goal, force a full CBBA
@@ -6421,26 +6616,13 @@ class FleetSim:
                     r.goal = fb
                     r.move_step(occupied)
                     return
-                # Still nothing. If the robot is standing inside UNCOVERED
-                # shadow, every normal plan is blocked by the comms gate at its
-                # own feet — coverage moved after it entered. Sanctioned
-                # evacuation: replan to the nearest open frontier with the gate
-                # lifted for this one plan. It can only walk OUT this way.
-                # (Observed: Drones sat 200-340 consecutive ticks inside
-                # uncovered buildings with benign hazard, full battery, and
-                # 37k reachable cells — pure gate deadlock, not conservation.)
-                r.stuck_steps += 1
-                if r._evacuating():
-                    r.shadow_block_steps = getattr(r, 'shadow_block_steps', 0) + 1
-                if r._evacuating() and getattr(r, 'shadow_block_steps', 0) >= EVAC_PATIENCE:
-                    evac_tgt = fb if fb is not None else self._nearest_open_cell(r)
-                    if evac_tgt is not None and r.set_goal(evac_tgt, escape=True):
-                        r.goal = evac_tgt
-                        r.goal_commit = max(getattr(r, 'goal_commit', 0), 20)
-                        r.move_step(occupied)
-                        return
-                # Truly nothing reachable — count toward idle rescue so a
-                # stale bundle/blacklist eventually gets cleared.
+                # Truly nothing reachable this tick — count toward idle rescue
+                # so a stale bundle/blacklist eventually gets cleared. (The old
+                # sanctioned-evacuation branch that lived here is gone: a robot
+                # standing in uncovered shadow never reaches this method any
+                # more — the comms-loss hold freezes it in step(). This also
+                # removes the double stuck_steps increment this path used to
+                # apply per tick.)
                 r.stuck_steps += 1
                 if r.stuck_steps >= IDLE_RESCUE_K:
                     r.stuck_steps = 0
