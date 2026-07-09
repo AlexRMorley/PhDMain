@@ -1,0 +1,54 @@
+{
+  "fleet": {
+    "n_seeds": 1,
+    "n_completed": 0,
+    "completion_rate": 0.0,
+    "mean_completion": null,
+    "std_completion": null,
+    "mean_final_found": 88.9,
+    "mean_coverage": 83.6,
+    "mean_buildings": 100.0,
+    "mean_deaths": 2.0,
+    "mean_ms_per_step": 205.0
+  },
+  "gnf": {
+    "n_seeds": 1,
+    "n_completed": 1,
+    "completion_rate": 100.0,
+    "mean_completion": 375.0,
+    "std_completion": 0.0,
+    "mean_final_found": 100.0,
+    "mean_coverage": 99.2,
+    "mean_buildings": 100.0,
+    "mean_deaths": 0.0,
+    "mean_ms_per_step": 171.3
+  },
+  "greedy_rl": {
+    "n_seeds": 1,
+    "n_completed": 0,
+    "completion_rate": 0.0,
+    "mean_completion": null,
+    "std_completion": null,
+    "mean_final_found": 66.7,
+    "mean_coverage": 78.3,
+    "mean_buildings": 100.0,
+    "mean_deaths": 0.0,
+    "mean_ms_per_step": 412.3
+  },
+  "advantage_fleet_vs_gnf": {
+    "n_completed": -1.0,
+    "mean_final_found": -11.1,
+    "mean_coverage": -15.6,
+    "mean_buildings": 0.0,
+    "mean_deaths": 2.0,
+    "mean_ms_per_step": 33.7
+  },
+  "advantage_fleet_vs_grl": {
+    "n_completed": 0.0,
+    "mean_final_found": 22.2,
+    "mean_coverage": 5.3,
+    "mean_buildings": 0.0,
+    "mean_deaths": 2.0,
+    "mean_ms_per_step": -207.3
+  }
+}

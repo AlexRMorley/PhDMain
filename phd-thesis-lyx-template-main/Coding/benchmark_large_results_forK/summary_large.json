@@ -1,0 +1,28 @@
+{
+  "configuration": {
+    "grid": "200\u00d7200",
+    "cell_m": 5,
+    "area_km2": 1.0,
+    "n_robots": 50,
+    "robot_mix": {
+      "Legged": 13,
+      "Drone": 17,
+      "Boat": 8,
+      "Rover": 12
+    },
+    "n_survivors": 45,
+    "max_battery": 2500,
+    "n_zones": 100
+  },
+  "n_seeds": 3,
+  "max_steps": 2000,
+  "n_completed": 0,
+  "completion_rate_pct": 0.0,
+  "completion_steps": {},
+  "computational_efficiency": {
+    "mean_ms_per_step": 30355.62,
+    "std_ms_per_step": 42096.96,
+    "max_ms_per_step": 157501000.6,
+    "total_wall_s": 182136.1
+  }
+}

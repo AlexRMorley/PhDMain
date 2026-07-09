@@ -23,7 +23,7 @@ import numpy as np
 
 # ---------- Configuration ----------
 CELL_SIZE    = 10
-GRID_W,GRID_H= 64,64
+GRID_W,GRID_H= 32,32
 FPS          = 10
 SIDEBAR_WIDTH= 200
 MAX_BATTERY  = 1000
@@ -87,69 +87,7 @@ class GridWorld:
             for y in range(self.h):
                 if random.random()<0.05:
                     self.grid[x][y]=Cell(Terrain.OBSTACLE)
-        # Cove
-        for x in range(5,10):
-            for y in range(15,20):
-                self.grid[x][y]=Cell(Terrain.WATER)
-        for x in range(4,11):
-            self.grid[x][9]=Cell(Terrain.OBSTACLE)
-        for y in range(9,21):
-            self.grid[4][y]=Cell(Terrain.OBSTACLE)
-            self.grid[10][y]=Cell(Terrain.OBSTACLE)
-        # River
-        for y in range(20,25):
-            for x in range(self.w):
-                self.grid[x][y]=Cell(Terrain.WATER)
-        for x in range(0,5):
-            for y in range(20,self.h):
-                self.grid[x][y]=Cell(Terrain.WATER)
-        # Pool
-        for x in range(35,44):
-            for y in range(7,11):
-                self.grid[x][y]=Cell(Terrain.WATER)
-        # Small Building
-        for x in range(21,27):
-            self.grid[x][7]=Cell(Terrain.OBSTACLE)
-            self.grid[x][12]=Cell(Terrain.OBSTACLE)
-        for y in range(7,14):
-            self.grid[21][y]=Cell(Terrain.OBSTACLE)
-            self.grid[26][y]=Cell(Terrain.OBSTACLE)
-        for y in range(9,12):
-            self.grid[26][y]=Cell(Terrain.FREE)
-        # Bridge
-        for x in range(50,53):
-            for y in range(19,26):
-                self.grid[x][y]=Cell(Terrain.STAIRS)
-        # Down River
-        for x in range(25,31):
-            for y in range(25,44):
-                self.grid[x][y]=Cell(Terrain.WATER)
-        for x in range(12,26):
-            for y in range(40,44):
-                self.grid[x][y]=Cell(Terrain.WATER)
-        # Large Building
-        for x in range(35,46):
-            self.grid[x][40]=Cell(Terrain.OBSTACLE)
-            self.grid[x][55]=Cell(Terrain.OBSTACLE)
-            self.grid[x][48]=Cell(Terrain.OBSTACLE)
-        for x in range(38,40):
-            self.grid[x][55]=Cell(Terrain.FREE)
-        for x in range(41,43):
-            self.grid[x][48]=Cell(Terrain.STAIRS)
-        for x in range(35,45):
-            for y in range(41,48):
-                self.grid[x][y]=Cell(Terrain.STAIRS)
-        for y in range(40,55):
-            self.grid[35][y]=Cell(Terrain.OBSTACLE)
-            self.grid[45][y]=Cell(Terrain.OBSTACLE)
-        for y in range(50,52):
-            self.grid[45][y]=Cell(Terrain.FREE)
-        # Rest free
-        for x in range(self.w):
-            for y in range(self.h):
-                t=self.grid[x][y].true_terrain
-                if t not in (Terrain.OBSTACLE,Terrain.STAIRS,Terrain.WATER):
-                    self.grid[x][y]=Cell(Terrain.FREE)
+
 
     def _initialize_temperature(self):
         # four Gaussian heat sources
@@ -291,10 +229,10 @@ class FleetSim:
     def __init__(self):
         self.world=GridWorld(GRID_W,GRID_H)
         starts=[(1,1),(GRID_W-2,1),(1,GRID_H-2),(GRID_W-2,GRID_H-2)]
-        names=["Legged","Drone","Boat","Rover"]
+        names=["Rover","Rover","Rover","Rover"]
         caps_l=[{Capability.LAND,Capability.STAIRS},{Capability.AIR},
                 {Capability.WATER},{Capability.LAND}]
-        self.robots=[Robot(names[i],*starts[i],caps_l[i],self.world)
+        self.robots=[Robot(names[i],*starts[i],caps_l[1],self.world)
                      for i in range(4)]
 
         free_cells=[(x,y) for x in range(self.world.w) for y in range(self.world.h)
