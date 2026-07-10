@@ -173,13 +173,12 @@ IDLE_RESCUE_K  = 10   # reduced from 15 — faster rescue of idle robots
 
 # ── Late-stage stagnation watchdog ───────────────────────────────────────────
 # Late-game shaping (goal hysteresis, docile patience) can over-stabilise:
-# if nothing new has been learned for a long stretch late in the mission the
-# fleet is stuck in a bad equilibrium (stale blacklists, exhausted bundles,
-# LOITER lock), not being patient. Progress = growth in fleet-known cells or
-# found survivors — belief-only signals, no world truth.
-STAGNATION_COV   = 0.60   # watchdog arms once union coverage passes this
-STAGNATION_K     = 150    # ticks with zero progress before the rescue fires
-STAGNATION_BOOST = 200    # rescue window: fast patience, no stickiness; also cooldown
+# (The late-stage stagnation watchdog that lived here is REMOVED. It reset
+# robots' blacklists/bundles and forced CBBA rebids when no progress was made
+# late in a run — an intervention that boosted outcomes by shaking the fleet
+# rather than by the coordination mechanisms under study, and that fired in a
+# futile loop when the last survivors were undetectable at full coverage.
+# Runs that stop progressing now stall honestly and benchmarks record it.)
 
 # Relay
 RELAY_MIN_HOLD     = 150       # ticks a relay must stay before being demoted
@@ -2114,14 +2113,6 @@ class FleetSim:
         self._reservations: dict = {}   # (x, y, t_offset) -> True
         self._reservation_window = 8    # look-ahead depth
 
-        # ── Late-stage stagnation watchdog state ─────────────────────────────
-        # Progress = growth in fleet-known cells or found survivors (belief-
-        # only signals). See the STAGNATION_* constants for the rationale.
-        self._last_progress_tick     = 0
-        self._known_cells_prev       = 0
-        self._found_prev             = 0
-        self._stagnation_boost_until = 0
-        self._force_cbba             = False
 
         self._decide_roles()          # build _last_clusters before first CBBA
         self._assign_zones_cbba()     # now relay utility is correct from t=0
@@ -5554,11 +5545,7 @@ class FleetSim:
         # changes which robot is suited to a task (capability + zone assignment
         # are decided upstream by the role game and CBBA), so it cannot make a
         # wrong locomotion type take work it shouldn't, nor silence a useful one.
-        # Suspended during the stagnation boost window: stickiness is one of
-        # the shaping terms that can hold the fleet in the stuck equilibrium
-        # the watchdog fires on, so robots must be free to re-target.
-        if (r.goal is not None
-                and self.timestep >= getattr(self, '_stagnation_boost_until', 0)):
+        if r.goal is not None:
             cov = getattr(self, 'global_cov', 0.0)
             stick = 6.0 + 30.0 * max(0.0, cov - 0.85) / 0.15   # ~6 early → ~36 near 100%
             near_old = (np.abs(cx_a - r.goal[0]) + np.abs(cy_a - r.goal[1]) <= 4).astype(np.float32)
@@ -5606,8 +5593,7 @@ class FleetSim:
             self._union_cov_tick  = self.timestep
         union_cov = self._union_cov_cache
         cbba_cadence = 20 if union_cov > 0.70 else 50
-        needs_cbba = (self.timestep % cbba_cadence == 0) or getattr(self, '_force_cbba', False)
-        self._force_cbba = False   # consume the stagnation watchdog's one-shot flag
+        needs_cbba = (self.timestep % cbba_cadence == 0)
 
         # LOITER rescue: any robot that has been LOITER for >60 ticks gets
         # its bundle cleared — prevents permanent loiter lock.
@@ -5855,50 +5841,6 @@ class FleetSim:
                 if (rx-sx)**2 + (ry-sy)**2 > R*R: continue
                 if self._has_los(rx, ry, sx, sy, r_inside_building):
                     self.found.add(s)
-
-        # ── Late-stage stagnation watchdog ────────────────────────────────────
-        # Progress = growth in fleet-KNOWN cells or newly found survivors —
-        # belief-only signals, no world truth (the survivor count is the
-        # mission spec, not an oracle position). Once coverage is high, a long
-        # stretch with zero progress while survivors remain means the fleet is
-        # stuck in a bad equilibrium (stale blacklists, exhausted bundles,
-        # LOITER lock, over-strong late-game hysteresis) — not being patient.
-        # The rescue clears that stale per-robot state, forces a CBBA rebid,
-        # and opens a boost window during which goal-stickiness and late-game
-        # patience are suspended (see _choose_goal / _move_robot). The window
-        # doubles as a cooldown so the watchdog cannot re-fire every tick.
-        known_cells = int(np.count_nonzero(self.union_belief != T_UNKNOWN))
-        found_now   = len(self.found)
-        if (known_cells > getattr(self, '_known_cells_prev', 0)
-                or found_now > getattr(self, '_found_prev', 0)):
-            self._last_progress_tick = self.timestep
-        self._known_cells_prev = known_cells
-        self._found_prev       = found_now
-        _total_cells = self.world.w * self.world.h
-        if (known_cells / max(1, _total_cells) >= STAGNATION_COV
-                and found_now < len(self.survivors)
-                and self.timestep - getattr(self, '_last_progress_tick', 0) >= STAGNATION_K
-                and self.timestep >= getattr(self, '_stagnation_boost_until', 0)):
-            n_reset = 0
-            for r2 in self.robots:
-                if not r2.active or r2.role == Role.RELAY:
-                    continue
-                if r2._evacuating():
-                    continue          # stranded in blackout: its idleness is intentional
-                r2.blacklist = {}     # stale blacklists are the most common lock
-                if r2.goal is None or r2.role == Role.LOITER:
-                    r2.bundle = []; r2.assigned_zones = []
-                    r2.task_zone = None
-                    r2.goal = None; r2.path = []; r2.goal_commit = 0
-                n_reset += 1
-            self._force_cbba = True                  # rebid at next tick's cadence check
-            self._stagnation_boost_until = self.timestep + STAGNATION_BOOST
-            self._last_progress_tick = self.timestep # restart the no-progress clock
-            self._stagnation_fires = getattr(self, '_stagnation_fires', 0) + 1
-            print(f"[STAGNATION] t={self.timestep} "
-                  f"cov={known_cells / max(1, _total_cells):.2f} "
-                  f"found={found_now}/{len(self.survivors)} — reset {n_reset} robots, "
-                  f"forced CBBA rebid, boost window {STAGNATION_BOOST} ticks")
 
         # ── role decisions ──
         # Run every tick — relay demotion safety is handled inside _move_relay
@@ -6595,11 +6537,6 @@ class FleetSim:
         # re-selection timing, never capability/zone assignment.
         _cov = getattr(self, 'global_cov', 0.0)
         _patience = 5 + int(25 * max(0.0, _cov - 0.85) / 0.15)   # 5 early → 30 near 100%
-        # Stagnation boost window: suspend late-game docility so robots
-        # re-select quickly and the fleet can break out of the stuck
-        # equilibrium the watchdog just detected.
-        if self.timestep < getattr(self, '_stagnation_boost_until', 0):
-            _patience = 5
         need_new = (r.goal is None or r.pos == r.goal or
                     (r.goal_commit == 0 and r.stuck_steps > _patience))
         if need_new:

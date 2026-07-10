@@ -561,7 +561,6 @@ class Result:
         self.stranded_end     = 0     # robots ending the run in comms blackout
         self.blackout_total   = 0     # fleet robot-ticks frozen in blackout (K)
         self.blackout_max     = 0     # longest single blackout episode (K)
-        self.stagnation_fires = 0     # watchdog rescues triggered (K)
         self.found_building   = 0     # survivors found on true stair cells
         self.found_open       = 0     # survivors found in the open
         self.relay_duty_ticks = 0     # robot-ticks spent in RELAY role
@@ -569,10 +568,18 @@ class Result:
         self.t_cov90          = -1    # first snapshot tick with coverage ≥ 90%
         self.t_stair50        = -1    # first snapshot tick with stair cov ≥ 50%
 
-# ── Runner ─────────────────────────────────────────────────────────────────────
-STALL_WINDOW = 600   # was 300 — doubled for 200×200 map (relay cycle ~200 ticks)
+# ── Stall exit ─────────────────────────────────────────────────────────────────
+# A run ends early when it makes NO progress — no new survivor found AND fewer
+# than STALL_MIN_CELLS newly-known cells — for `--stall` consecutive ticks.
+# Coverage growth counts as progress, so a fleet still mapping its way toward
+# survivors is never cut off; a fleet wandering without learning anything is
+# declared STALLED and the benchmark moves on. (K's former stagnation-rescue
+# watchdog has been removed from the framework itself, so no model can
+# self-rescue past this exit any more.)
+STALL_WINDOW_DEFAULT = 300
+STALL_MIN_CELLS      = 25   # known-cell growth below this does not reset the window
 
-def run_sim(sim_name, factory, seed, steps):
+def run_sim(sim_name, factory, seed, steps, stall_window=STALL_WINDOW_DEFAULT):
     random.seed(seed); np.random.seed(seed)
     sim = factory()
     res = Result(sim_name, seed)
@@ -607,7 +614,9 @@ def run_sim(sim_name, factory, seed, steps):
     _pos_hist = {r.name: _deque(maxlen=5) for r in sim.robots}
     _prev_union_count = int(np.sum(sim.union_belief != M.T_UNKNOWN))
     _prev_pos = {r.name: r.pos for r in sim.robots}
-    _last_found_step = 0
+    _last_progress_step = 0
+    _cells_ref  = _prev_union_count   # known-cell baseline for the stall window
+    _prev_found = 0
     # Which module owns this sim's Role enum? Fall back to M for baselines.
     _mod_for_role = M_K if sim_name in K_SIM_NAMES else (
                      M_J if sim_name == 'J-bounded' else M)
@@ -700,8 +709,12 @@ def run_sim(sim_name, factory, seed, steps):
         if n_found >= res.total_survivors and res.t_all_found < 0:
             res.t_all_found = step
 
-        if n_found > 0 and (not res.found_ts or n_found > res.found_ts[-1][1]):
-            _last_found_step = step
+        # Progress bookkeeping for the stall exit: a new survivor, or enough
+        # newly-known cells since the last reset, restarts the window.
+        if n_found > _prev_found:
+            _last_progress_step = step; _prev_found = n_found
+        if new_union_count - _cells_ref >= STALL_MIN_CELLS:
+            _last_progress_step = step; _cells_ref = new_union_count
 
         if n_found >= res.total_survivors and not res.completed:
             res.completed = True; res.completion_step = step
@@ -711,8 +724,10 @@ def run_sim(sim_name, factory, seed, steps):
         if not active_robots:
             break
 
-        # Exit if stalled — no new survivors for STALL_WINDOW steps
-        if step - _last_found_step > STALL_WINDOW and step > STALL_WINDOW:
+        # Exit if stalled — no progress of any kind for `stall_window` steps.
+        # Just say it stalled and move on: partial metrics are recorded,
+        # stalled=1 in runs.csv, steps_ran shows where it ended.
+        if step - _last_progress_step > stall_window:
             res.stalled = True
             break
 
@@ -774,7 +789,6 @@ def run_sim(sim_name, factory, seed, steps):
         res.stranded_end = sum(
             1 for r in sim.robots if r.active
             and sim.radio_shadow[r.pos[0], r.pos[1]] and not _relay_covered(sim, r))
-    res.stagnation_fires = int(getattr(sim, '_stagnation_fires', 0))
 
     # Survivors found split by true location class (METRIC-only world truth —
     # identical measurement for every model; policies never see this).
@@ -835,13 +849,28 @@ def _save(fig, path, name):
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 def main():
+    global SIMS
     ap = argparse.ArgumentParser()
     ap.add_argument('--steps', type=int, default=3000)
     ap.add_argument('--seeds', type=str, default='10,20,30,40')
     ap.add_argument('--out',   type=str, default=None)
+    ap.add_argument('--stall', type=int, default=STALL_WINDOW_DEFAULT,
+                    help='ticks with no progress (no survivor, <%d new cells) '
+                         'before a run is declared STALLED and ended. '
+                         'Default %d.' % (STALL_MIN_CELLS, STALL_WINDOW_DEFAULT))
+    ap.add_argument('--sims', type=str, default='all',
+                    help="comma list of sim names to run (e.g. 'K-20,GNF,CARA-Base'); "
+                         "default all. Big wall-time saver for targeted questions.")
     args = ap.parse_args()
     seeds = [int(s) for s in args.seeds.split(',')]
     steps = args.steps
+    if args.sims != 'all':
+        wanted = {s.strip() for s in args.sims.split(',')}
+        known = {name for name, _, _, _ in SIMS}
+        bad = wanted - known
+        if bad:
+            print('unknown sims:', sorted(bad), '\nvalid:', sorted(known)); sys.exit(1)
+        SIMS = [s for s in SIMS if s[0] in wanted]
     out_dir = args.out or os.path.join(_HERE, 'benchmark_large_comparison_post')
     os.makedirs(out_dir, exist_ok=True)
 
@@ -867,7 +896,7 @@ def main():
             _progress(overall, total_runs,
                       prefix='Overall  ',
                       suffix=f'seed={seed}  starting {name}...')
-            res = run_sim(name, factory, seed, steps)
+            res = run_sim(name, factory, seed, steps, stall_window=args.stall)
             results_by_name[name].append(res)
             is_cara = res.milp_n > 0
             stall_tag = ' [STALLED]' if res.stalled else ''
@@ -891,7 +920,7 @@ def main():
                       'p50','p90','avg_ms','milp_avg','milp_max','milp_n','hold','ejects',
                       'ground_avg','ground_p50','ground_p90','astar_max_avg','dist_avg','dist_p90',
                       'peak_relays',
-                      'stranded_end','blackout_total','blackout_max','stagnation_fires',
+                      'stranded_end','blackout_total','blackout_max',
                       'found_building','found_open','relay_duty_ticks','battery_used','steps_ran'):
                 accs[name][k] += getattr(res, k, 0)
             # Time-to-milestone: -1 sentinel means "never reached"; only average
@@ -1000,6 +1029,8 @@ def main():
         'n_survivors': LARGE_N_SURVIVORS,
         'steps': steps,
         'seeds': seeds,
+        'stall_window': args.stall,
+        'stall_min_cells': STALL_MIN_CELLS,
     }
     with open(os.path.join(out_dir, 'summary.json'), 'w') as f:
         json.dump(summary, f, indent=2)
@@ -1017,7 +1048,7 @@ def main():
         'final_cov', 'final_stair', 'buildings_total',
         'deaths', 'hazard_deaths', 'battery_deaths', 'comms_deaths',
         'stranded_end', 'blackout_total', 'blackout_max', 'trapped', 'viol',
-        'stagnation_fires', 'relay_duty_ticks', 'peak_relays', 'battery_used',
+        'relay_duty_ticks', 'peak_relays', 'battery_used',
         't_first_found', 't_half_found', 't_all_found', 't_cov90', 't_stair50',
         'avg_ms', 'p50', 'p90',
         'ground_avg', 'ground_p50', 'ground_p90',
@@ -1275,10 +1306,11 @@ def main():
         d = avgs[name]
         lines.append(f"{name:<14} {d['final_cov']:5.1f} {d['final_stair']:6.1f}"
                      f" {d['final_found']:6.1f} {d['avg_ms']:6.1f}")
-    lines += ['', 'CARA extras:',
-              f"  Base:    MILP {avgs['CARA-Base']['milp_avg']:.0f}ms avg",
-              f"  Dynamic: {avgs['CARA-Dynamic']['hold']:.0f} hold-ticks",
-              f"           {avgs['CARA-Dynamic']['ejects']:.0f} eject events"]
+    if 'CARA-Base' in avgs and 'CARA-Dynamic' in avgs:
+        lines += ['', 'CARA extras:',
+                  f"  Base:    MILP {avgs['CARA-Base']['milp_avg']:.0f}ms avg",
+                  f"  Dynamic: {avgs['CARA-Dynamic']['hold']:.0f} hold-ticks",
+                  f"           {avgs['CARA-Dynamic']['ejects']:.0f} eject events"]
     ax_txt.text(0.03, 0.97, '\n'.join(lines), transform=ax_txt.transAxes,
                 fontsize=8, va='top', fontfamily='monospace',
                 bbox=dict(boxstyle='round', facecolor='lightyellow', alpha=0.9))
