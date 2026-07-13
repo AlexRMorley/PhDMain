@@ -1,0 +1,11 @@
+metric,exponent,n_sizes
+step_mean_ms,1.441,10
+ground_mean_ms,1.43,10
+astar_max_mean_ms,1.007,10
+explorer_move_ms,1.469,10
+relay_move_ms,1.21,10
+alloc_ms,1.981,10
+role_ms,1.04,10
+relay_cover_ms,0.806,10
+step_ms_per_robot,0.441,10
+ground_ms_per_robot,0.43,10
