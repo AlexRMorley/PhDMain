@@ -31,12 +31,12 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 
 # ── Configuration ─────────────────────────────────────────────────────────────
-N_SEEDS   = 3           # fewer seeds — each run is longer
+N_SEEDS   = (10,11,12,13,14,15,16,17,18,19)           # fewer seeds — each run is longer
 MAX_STEPS = 2000
-SEEDS     = list(range(N_SEEDS))
+SEEDS     = list(N_SEEDS)
 BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
 SIM_FILE  = os.path.join(BASE_DIR, "2DFleetFrameworkK.py")
-OUT_DIR   = os.path.join(BASE_DIR, "benchmark_large_results_forK")
+OUT_DIR   = os.path.join(BASE_DIR, "benchmark_large_results_10")
 os.makedirs(OUT_DIR, exist_ok=True)
 
 # ── Large-scale parameters ────────────────────────────────────────────────────
