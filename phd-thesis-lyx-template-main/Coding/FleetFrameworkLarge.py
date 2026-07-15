@@ -23,7 +23,7 @@ import sys, os, random, importlib.util
 import numpy as np
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SIM_FILE = os.path.join(BASE_DIR, "2DFleetFrameworkJ.py")
+SIM_FILE = os.path.join(BASE_DIR, "2DFleetFrameworkN.py")
 if not os.path.exists(SIM_FILE):
     SIM_FILE = os.path.join(BASE_DIR, "hetero_robot_fleet_sim.py")
 
@@ -36,7 +36,7 @@ LARGE_GRID_W      = 200
 LARGE_GRID_H      = 200
 LARGE_CELL_SIZE   = 5
 LARGE_ZONE_CHUNKS = 10
-LARGE_MAX_BATTERY = 1500
+LARGE_MAX_BATTERY = 2000   # bench parity (ComparisonBenchLarge uses 2000)
 LARGE_MAX_BUNDLE  = 8
 LARGE_N_SURVIVORS = 45
 LARGE_ROBOTS = {"Legged": 13, "Drone": 17, "Boat": 8, "Rover": 12}
@@ -125,15 +125,23 @@ M.FleetSim._decide_roles = _patched_decide_roles
 
 # ── Robot spawn patch ─────────────────────────────────────────────────────────
 def _patched_build_robots(self):
+    # Graded hazard durability — must match the bench templates exactly or the
+    # RNG stream (and therefore the whole world/run) diverges from the bench.
+    _hp = getattr(M, 'ROBOT_HAZARD_PROFILE', None) or {
+        'Legged': dict(temp_limit=M.TEMP_LIMIT, rad_limit=M.RAD_LIMIT),
+        'Drone':  dict(temp_limit=M.TEMP_LIMIT, rad_limit=M.RAD_LIMIT),
+        'Boat':   dict(temp_limit=9999., rad_limit=9999.),
+        'Rover':  dict(temp_limit=9999., rad_limit=9999.),
+    }
     templates = [
         ("Legged", {M.Capability.LAND, M.Capability.STAIRS},
-         np.array([10., 10.]), (M.TEMP_LIMIT, M.RAD_LIMIT)),
+         np.array([10., 10.]), (_hp['Legged']['temp_limit'], _hp['Legged']['rad_limit'])),
         ("Drone",  {M.Capability.AIR},
-         np.array([10., 10.]), (M.TEMP_LIMIT, M.RAD_LIMIT)),
+         np.array([10., 10.]), (_hp['Drone']['temp_limit'], _hp['Drone']['rad_limit'])),
         ("Boat",   {M.Capability.WATER},
-         np.array([0.,  0.]),  (9999., 9999.)),
+         np.array([0.,  0.]),  (_hp['Boat']['temp_limit'], _hp['Boat']['rad_limit'])),
         ("Rover",  {M.Capability.LAND},
-         np.array([-2., -2.]), (9999., 9999.)),
+         np.array([-2., -2.]), (_hp['Rover']['temp_limit'], _hp['Rover']['rad_limit'])),
     ]
     tpl = {n: (n, c, w, l) for n, c, w, l in templates}
     spawn = []
@@ -163,8 +171,10 @@ def _patched_build_robots(self):
 
         if tname == "Boat" and water_cells:
             pool = water_by_quad.get((qx, qy), []) or water_cells
-            ns   = [c for c in pool if not self.radio_shadow[c[0], c[1]]]
-            sx, sy = random.choice(ns or pool)
+            non_shadow_quad   = [c for c in pool        if not self.radio_shadow[c[0], c[1]]]
+            non_shadow_global = [c for c in water_cells if not self.radio_shadow[c[0], c[1]]]
+            chosen_pool = non_shadow_quad or non_shadow_global or pool
+            sx, sy = random.choice(chosen_pool)
         else:
             sx, sy = center
             for _ in range(50):
@@ -194,22 +204,29 @@ def _patched_build_survivors(self):
 
     building_survivors = random.sample(free_stair, min(n_building, len(free_stair)))
 
-    grid_k = round(n_open ** 0.5)
-    cell_w = W // grid_k; cell_h = H // grid_k
-    open_survivors = []
+    grid_k = max(1, int(np.ceil(n_open ** 0.5)))
+    cell_w = max(1, W // grid_k); cell_h = max(1, H // grid_k)
+    open_survivors = []; _used = set(building_survivors)
     for gx in range(grid_k):
         for gy in range(grid_k):
             x0 = gx * cell_w; x1 = min(W, x0 + cell_w)
             y0 = gy * cell_h; y1 = min(H, y0 + cell_h)
-            pool = [(x, y) for x, y in free_open if x0 <= x < x1 and y0 <= y < y1]
+            pool = [(x, y) for x, y in free_open
+                    if x0 <= x < x1 and y0 <= y < y1 and (x, y) not in _used]
             if pool:
-                open_survivors.append(random.choice(pool))
+                c = random.choice(pool); open_survivors.append(c); _used.add(c)
             if len(open_survivors) >= n_open:
                 break
         if len(open_survivors) >= n_open:
             break
 
-    self.survivors = building_survivors + open_survivors
+    survivors = building_survivors + open_survivors
+    if len(survivors) < n_total:
+        _used = set(survivors)
+        spare = [c for c in free_open if c not in _used]
+        random.shuffle(spare)
+        survivors += spare[:n_total - len(survivors)]
+    self.survivors = survivors[:n_total]
 
 M.FleetSim._build_survivors = _patched_build_survivors
 
@@ -217,11 +234,13 @@ M.FleetSim._build_survivors = _patched_build_survivors
 # gui_loop() hardcodes random.seed(0) — monkey-patch it to use our seed
 _orig_gui_loop = M.gui_loop
 def _patched_gui_loop(seed=3):
-    import types
-    # Temporarily replace FleetSim.__init__ to inject the seed
+    # Seed BOTH RNGs with the requested seed, exactly as the benches do
+    # (run_sim: random.seed(seed); np.random.seed(seed); sim = factory()).
+    # The previous version hardcoded seed(10)/seed(4), so the CLI seed was
+    # silently ignored and no run could ever match a bench seed.
     _orig_init = M.FleetSim.__init__
     def _seeded_init(self_sim):
-        random.seed(11); np.random.seed(4)
+        random.seed(seed); np.random.seed(seed)
         _orig_init(self_sim)
     M.FleetSim.__init__ = _seeded_init
     try:
@@ -229,21 +248,45 @@ def _patched_gui_loop(seed=3):
     finally:
         M.FleetSim.__init__ = _orig_init
 
+# Sensor radius: the framework now hardcodes terrain_R = 3 (decoupled from
+# CELL_SIZE), so display zoom can no longer alter sensing physics and no pin
+# is needed here.
+_BENCH_TERRAIN_R = 3   # for the header print only
+
 # ── Launch ────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    seed       = int(sys.argv[1]) if len(sys.argv) > 1 else 3
-    display_px = int(sys.argv[2]) if len(sys.argv) > 2 else 4
+    args = [a for a in sys.argv[1:] if not a.startswith('--')]
+    flags = {a for a in sys.argv[1:] if a.startswith('--')}
+    seed       = int(args[0]) if len(args) > 0 else 3
+    display_px = int(args[1]) if len(args) > 1 else 4
+    plain      = '--plain' in flags
+
+    # Environment: hazard-dense (AblationBench's extreme world) by default;
+    # --plain gives the ComparisonBenchLarge world instead. With matching
+    # seed, world and dynamics reproduce the corresponding bench run exactly.
+    if not plain:
+        import importlib.util as _ilu
+        _hz_path = os.path.join(BASE_DIR, 'hazard_env.py')
+        if not os.path.exists(_hz_path):
+            print('hazard_env.py not found next to this script — falling back to plain env')
+            plain = True
+        else:
+            _hs = _ilu.spec_from_file_location('hazard_env', _hz_path)
+            _hz = _ilu.module_from_spec(_hs); _hs.loader.exec_module(_hz)
+            _hz.apply_hazard_env(M)
 
     M.CELL_SIZE = display_px
     w_px = LARGE_GRID_W * display_px
     h_px = LARGE_GRID_H * display_px
 
-    print(f"Large-Scale Fleet Sim  (all performance patches active)")
-    print(f"  Grid    : {LARGE_GRID_W}×{LARGE_GRID_H} @ {LARGE_CELL_SIZE}m = 1km²")
+    print(f"Large-Scale Fleet Sim  (bench-parity patches active)")
+    print(f"  Grid    : {LARGE_GRID_W}x{LARGE_GRID_H} @ {LARGE_CELL_SIZE}m = 1km²")
+    print(f"  Env     : {'PLAIN (ComparisonBenchLarge world)' if plain else 'HAZARD-DENSE (AblationBench world)  [--plain for bench-plain]'}")
     print(f"  Robots  : {sum(LARGE_ROBOTS.values())} "
-          f"({', '.join(f'{n} {t}' for t, n in LARGE_ROBOTS.items())})")
+          f"({', '.join(f'{n} {t}' for t, n in LARGE_ROBOTS.items())})"
+          f"  sensor R={_BENCH_TERRAIN_R} cells (pinned)")
     print(f"  Battery : {LARGE_MAX_BATTERY}  CBBA_ITERS={M.CBBA_ITERS}  goal_commit=60")
-    print(f"  Seed    : {seed}  Window: {w_px}×{h_px}px")
+    print(f"  Seed    : {seed}  Window: {w_px}x{h_px}px")
     print(f"\nBuilding world... (may take a few seconds)")
     print(f"Controls: SPACE=pause  S=step  P=paths  Q=quit\n")
 

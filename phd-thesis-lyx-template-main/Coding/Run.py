@@ -2,13 +2,17 @@
 run.py  —  Unified simulator launcher
 ======================================
 Lets you pick which simulator to watch:
-  1  Fleet Sim   (full coordination: CBBA + potential game + relay)
-  2  GNF         (greedy nearest-frontier, no coordination)
-  3  Greedy RL   (single-step reward maximisation, γ=0)
-  4  CARA        (centralised MILP task allocation, relay-constrained)
+  1  Fleet Sim      (full coordination: CBBA + potential game + relay)
+  2  GNF            (greedy nearest-frontier, no coordination)
+  3  GNF-Risk       (GNF + belief-based risk-aware pathing)
+  4  CARA-2022      (faithful published CARA: PDR-triggered self-relaying)
+  5  CARA-EL-Base   (capability-aware MILP allocation, relay-constrained)
+  6  CARA-EL-Dyn    (CARA-EL + execution layer: hold gate / eject)
+  7  ACHORD-insp    (droppable radios + predictive comms extension)
 
 Usage:
-    python run.py [--sim fleet|gnf|rl|cara] [--seed N] [--steps N]
+    python run.py [--sim fleet|gnf|gnf-risk|cara2022|cara-base|cara-dyn|achord|achord-risk] [--seed N] [--steps N]
+    ('--sim cara' is kept as an alias for cara-dyn)
 
 If --sim is omitted a selector screen is shown on startup.
 Press SPACE to pause/resume, R to reset, Q to quit.
@@ -21,22 +25,31 @@ import importlib.util
 # ── Locate files relative to this script ─────────────────────────────────────
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
-def _find(name):
-    candidates = [
-        os.path.join(_HERE, name),
-        os.path.join(_HERE, '..', 'outputs', name),
-        os.path.join('/mnt/user-data/outputs', name),
-        os.path.join('/home/claude', name),
-    ]
-    for p in candidates:
-        if os.path.exists(p):
-            return os.path.abspath(p)
-    raise FileNotFoundError(f"Cannot find {name}. Place it in the same folder as run.py.")
+def _find(*names):
+    for name in names:
+        for folder in (_HERE, os.path.join(_HERE, '..', 'outputs'),
+                       '/mnt/user-data/outputs', '/home/claude'):
+            p = os.path.join(folder, name)
+            if os.path.exists(p):
+                return os.path.abspath(p)
+    raise FileNotFoundError(
+        f"Cannot find any of {names}. Place one in the same folder as run.py.")
 
-FLEET_PATH = _find('2DFleetFrameworkI.py')
-GNF_PATH   = _find('GNF_Sim.py')
-RL_PATH    = _find('GreedyRL.py')
-CARA_PATH  = _find('Cara_simDynamic.py')
+FLEET_PATH = _find('2DFleetFrameworkN.py', '2DFleetFrameworkM.py', '2DFleetFrameworkI.py')
+GNF_PATH   = _find('GNF_Sim.py', 'gnf_sim.py')
+CARA_PATH  = _find('Cara_sim.py', 'Cara_simDynamic.py')
+try:
+    CARA_PAPER_PATH = _find('Cara_paper.py')
+except FileNotFoundError:
+    CARA_PAPER_PATH = None
+try:
+    ACHORD_PATH = _find('ACHORD.py', 'Achord_sim.py', 'achord_sim.py')
+except FileNotFoundError:
+    ACHORD_PATH = None
+try:
+    RITAGS_PATH = _find('Ritags_sim.py', 'ritags_sim.py', 'RITAGS.py')
+except FileNotFoundError:
+    RITAGS_PATH = None
 
 def _load(path, name):
     spec = importlib.util.spec_from_file_location(name, path)
@@ -63,12 +76,29 @@ T_UNKNOWN            = M_fleet.T_UNKNOWN
 Role                 = M_fleet.Role
 
 M_gnf  = _load(GNF_PATH,  'gnf')
-M_rl   = _load(RL_PATH,   'rl')
 M_cara = _load(CARA_PATH, 'cara')
 
-GNFSim      = M_gnf.GNFSim
-GreedyRLSim = M_rl.make_greedy_rl_sim(M_gnf, M_fleet)
-CARASim     = M_cara.make_cara_sim(M_gnf, M_fleet)
+GNFSim = M_gnf.GNFSim
+try:
+    CARABaseSim = M_cara.make_cara_sim(M_gnf, M_fleet, use_exec_layer=False)
+    CARADynSim  = M_cara.make_cara_sim(M_gnf, M_fleet, use_exec_layer=True)
+except TypeError:   # older single-variant module
+    CARABaseSim = CARADynSim = M_cara.make_cara_sim(M_gnf, M_fleet)
+CARAPaperSim = None
+if CARA_PAPER_PATH is not None:
+    M_cara_paper = _load(CARA_PAPER_PATH, 'cara_paper')
+    CARAPaperSim = M_cara_paper.make_cara_paper_sim(M_gnf, M_fleet)
+ACHORDSim = None
+ACHORDRiskSim = None
+if ACHORD_PATH is not None:
+    M_achord = _load(ACHORD_PATH, 'achord')
+    ACHORDSim = M_achord.make_achord_sim(M_gnf, M_fleet)
+    if hasattr(M_achord, 'make_achord_risk_sim'):
+        ACHORDRiskSim = M_achord.make_achord_risk_sim(M_gnf, M_fleet)
+RitagsSim = None
+if RITAGS_PATH is not None:
+    M_ritags = _load(RITAGS_PATH, 'ritags')
+    RitagsSim = M_ritags.make_ritags_sim(M_gnf, M_fleet)
 
 
 def make_sim(kind: str, seed: int):
@@ -77,10 +107,28 @@ def make_sim(kind: str, seed: int):
         sim = M_fleet.FleetSim()
     elif kind == 'gnf':
         sim = GNFSim(M_fleet)
-    elif kind == 'rl':
-        sim = GreedyRLSim(M_fleet)
-    elif kind == 'cara':
-        sim = CARASim(M_fleet)
+    elif kind == 'gnf-risk':
+        sim = M_gnf.GNFRiskSim(M_fleet)
+    elif kind == 'cara2022':
+        if CARAPaperSim is None:
+            raise FileNotFoundError("Cara_paper.py not found next to run.py")
+        sim = CARAPaperSim(M_fleet)
+    elif kind == 'achord':
+        if ACHORDSim is None:
+            raise FileNotFoundError("ACHORD.py not found next to run.py")
+        sim = ACHORDSim(M_fleet)
+    elif kind == 'achord-risk':
+        if ACHORDRiskSim is None:
+            raise FileNotFoundError("ACHORD.py with make_achord_risk_sim not found")
+        sim = ACHORDRiskSim(M_fleet)
+    elif kind == 'ritags':
+        if RitagsSim is None:
+            raise FileNotFoundError("Ritags_sim.py not found next to run.py")
+        sim = RitagsSim(M_fleet)
+    elif kind == 'cara-base':
+        sim = CARABaseSim(M_fleet)
+    elif kind in ('cara', 'cara-dyn'):    # 'cara' kept as legacy alias
+        sim = CARADynSim(M_fleet)
     else:
         raise ValueError(f"Unknown sim kind: {kind}")
     if not hasattr(sim, '_relay_ok_flood'):   sim._relay_ok_flood   = {}
@@ -89,21 +137,105 @@ def make_sim(kind: str, seed: int):
     return sim
 
 
+# ── Substrate-aware relay-coverage overlay ────────────────────────────────────
+# The framework's draw_shadow_coverage() reads _active_relay_coverage_union(),
+# which ONLY the Fleet sim (disk-radius model) implements. The GNF-substrate
+# baselines (GNF, Greedy-Oracle, CARA-EL Base/Dyn, ACHORD) instead expose a
+# boolean _relay_ok array (border-flood coverage). This helper renders THAT
+# array so relay extension is visible on those sims too, matching the same
+# green=covered / red=uncovered / white-border colour scheme.
+def draw_substrate_coverage(screen, sim):
+    relay_ok = getattr(sim, '_relay_ok', None)
+    shd      = getattr(sim, 'radio_shadow', None)
+    if relay_ok is None or shd is None:
+        return
+    covered = shd & relay_ok
+    uncov   = shd & ~relay_ok
+    overlay = pygame.Surface((GRID_W * CELL_SIZE, GRID_H * CELL_SIZE), pygame.SRCALPHA)
+    # green covered
+    xs, ys = np.where(covered)
+    for x, y in zip(xs.tolist(), ys.tolist()):
+        overlay.fill((0, 200, 80, 65),
+                     (x*CELL_SIZE, y*CELL_SIZE, CELL_SIZE, CELL_SIZE))
+    # red uncovered
+    xs, ys = np.where(uncov)
+    for x, y in zip(xs.tolist(), ys.tolist()):
+        overlay.fill((220, 40, 40, 75),
+                     (x*CELL_SIZE, y*CELL_SIZE, CELL_SIZE, CELL_SIZE))
+    # white border: non-shadow cells adjacent to covered shadow (relay anchors)
+    shd_i = shd.astype(np.uint8)
+    nbr = ((np.roll(shd_i,1,0)|np.roll(shd_i,-1,0)|
+            np.roll(shd_i,1,1)|np.roll(shd_i,-1,1)) > 0)
+    border = (~shd) & nbr & relay_ok
+    xs, ys = np.where(border)
+    for x, y in zip(xs.tolist(), ys.tolist()):
+        overlay.fill((255, 255, 255, 120),
+                     (x*CELL_SIZE, y*CELL_SIZE, CELL_SIZE, CELL_SIZE))
+    # Coverage-disk bound (R = RELAY_COVERAGE_RADIUS_CELLS): draw the actual
+    # disk outline around every live coverage source, so bounded-disk vs
+    # flood is verifiable BY EYE — any green outside a circle would be a
+    # parity violation.
+    R_cov = getattr(getattr(sim, 'M', None), 'RELAY_COVERAGE_RADIUS_CELLS', 30)
+    border_m = getattr(sim, '_shadow_border_mask_cache', None)
+    if border_m is not None:
+        for r in sim.robots:
+            if not getattr(r, 'active', False):
+                continue
+            rx, ry = r.pos
+            if not shd[rx, ry] and border_m[rx, ry]:
+                pygame.draw.circle(overlay, (0, 180, 220, 110),
+                                   (rx*CELL_SIZE + CELL_SIZE//2,
+                                    ry*CELL_SIZE + CELL_SIZE//2),
+                                   int(R_cov*CELL_SIZE), 1)
+    # ACHORD: dropped-radio nodes — gold cell + halo at the TRUE coverage
+    # radius (was a small decorative pulse, misleading under disk parity).
+    for rad in getattr(sim, 'radios', []):
+        rx, ry = rad.pos
+        overlay.fill((255, 215, 0, 235),
+                     (rx*CELL_SIZE, ry*CELL_SIZE, CELL_SIZE, CELL_SIZE))
+        cx = rx*CELL_SIZE + CELL_SIZE//2
+        cy = ry*CELL_SIZE + CELL_SIZE//2
+        pygame.draw.circle(overlay, (255, 215, 0, 170), (cx, cy),
+                           int(R_cov*CELL_SIZE), 2)
+        pygame.draw.circle(overlay, (120, 70, 10, 200), (cx, cy),
+                           CELL_SIZE, 1)
+    screen.blit(overlay, (0, 0))
+
+
 # ── Selector screen ───────────────────────────────────────────────────────────
 def selector_screen(screen, font_big, font_sm):
     options = [
-        ('fleet', '1  Fleet Sim',    'CBBA + potential game + relay coordination'),
-        ('gnf',   '2  GNF Baseline', 'Greedy nearest-frontier, no coordination'),
-        ('rl',    '3  Greedy RL',    'Single-step reward max (γ=0), border relay bonus'),
-        ('cara',  '4  CARA MILP',    'Centralised MILP allocation, relay-constrained'),
+        ('fleet',     '1  Fleet Sim',      'CBBA + potential game + relay coordination'),
+        ('gnf',       '2  GNF Baseline',   'Greedy nearest-frontier, no coordination'),
+        ('gnf-risk',  '3  GNF-Risk',       'GNF + belief-based risk-aware pathing'),
+        ('cara2022',  '4  CARA-2022',      'Published CARA: PDR-triggered self-relaying'),
+        ('cara-base', '5  CARA-EL-Base',   'Capability-aware MILP allocation'),
+        ('cara-dyn',  '6  CARA-EL-Dyn',    'CARA-EL + exec layer (hold gate / eject)'),
+        ('achord',    '7  ACHORD-insp',    'Droppable radios + predictive comms extension'),
+        ('achord-risk','8  ACHORD-Risk',    'ACHORD + belief-based risk-aware pathing'),
+        ('ritags',    '9  RITAGS-insp',    'Risk-tolerant trait-based coalitions (IROS 2023)'),
     ]
+    if CARAPaperSim is None:
+        options = [o for o in options if o[0] != 'cara2022']
+    if ACHORDSim is None:
+        options = [o for o in options if o[0] != 'achord']
+    if ACHORDRiskSim is None:
+        options = [o for o in options if o[0] != 'achord-risk']
+    if RitagsSim is None:
+        options = [o for o in options if o[0] != 'ritags']
     W = GRID_W * CELL_SIZE + SIDEBAR_WIDTH
     H = GRID_H * CELL_SIZE
     hover = None
 
+    # Adaptive layout: fit however many options exist inside the window
+    # (fixed 75px pitch used to push rows 9+ below the bottom edge, making
+    # them unclickable).
+    top = 120
+    pitch = min(75, max(46, (H - top - 60) // max(1, len(options))))
+    box_h = pitch - 8
     rects = {}
     for i, (kind, label, _) in enumerate(options):
-        rects[kind] = pygame.Rect(W//2 - 200, 160 + i*85, 400, 62)
+        rects[kind] = pygame.Rect(W//2 - 200, top + i*pitch, 400, box_h)
 
     while True:
         for ev in pygame.event.get():
@@ -112,8 +244,13 @@ def selector_screen(screen, font_big, font_sm):
             if ev.type == pygame.KEYDOWN:
                 if ev.key == pygame.K_1: return 'fleet'
                 if ev.key == pygame.K_2: return 'gnf'
-                if ev.key == pygame.K_3: return 'rl'
-                if ev.key == pygame.K_4: return 'cara'
+                if ev.key == pygame.K_3: return 'gnf-risk'
+                if ev.key == pygame.K_4 and CARAPaperSim is not None: return 'cara2022'
+                if ev.key == pygame.K_5: return 'cara-base'
+                if ev.key == pygame.K_6: return 'cara-dyn'
+                if ev.key == pygame.K_7 and ACHORDSim is not None: return 'achord'
+                if ev.key == pygame.K_8 and ACHORDRiskSim is not None: return 'achord-risk'
+                if ev.key == pygame.K_9 and RitagsSim is not None: return 'ritags'
                 if ev.key == pygame.K_q: pygame.quit(); sys.exit()
             if ev.type == pygame.MOUSEMOTION:
                 hover = next((k for k, rect in rects.items() if rect.collidepoint(ev.pos)), None)
@@ -132,15 +269,17 @@ def selector_screen(screen, font_big, font_sm):
             col_bg  = (50, 80, 130) if hover == kind else (35, 55, 95)
             col_bdr = (100, 160, 255) if hover == kind else (70, 100, 170)
             # CARA gets a slightly different tint to signal it's the academic baseline
-            if kind == 'cara':
+            if kind.startswith('cara'):
                 col_bg  = (80, 55, 120) if hover == kind else (55, 35, 90)
                 col_bdr = (180, 120, 255) if hover == kind else (120, 80, 180)
             pygame.draw.rect(screen, col_bg,  rect, border_radius=8)
             pygame.draw.rect(screen, col_bdr, rect, 2, border_radius=8)
-            screen.blit(font_big.render(label, True, (230, 240, 255)), (rect.x+18, rect.y+8))
-            screen.blit(font_sm.render(desc,   True, (160, 175, 210)), (rect.x+18, rect.y+34))
+            screen.blit(font_big.render(label, True, (230, 240, 255)), (rect.x+18, rect.y+4))
+            if rect.h >= 44:
+                screen.blit(font_sm.render(desc, True, (160, 175, 210)),
+                            (rect.x+18, rect.y+rect.h-20))
 
-        hint = font_sm.render('Press 1/2/3/4 or click to select   •   Q to quit',
+        hint = font_sm.render('Press 1-9 / 0 or click to select   •   Q to quit',
                                True, (100, 100, 140))
         screen.blit(hint, (W//2 - hint.get_width()//2, H - 40))
         pygame.display.flip()
@@ -188,10 +327,16 @@ def draw_sidebar(screen, font, sim, kind, running, show_flags):
     pct   = disc / (GRID_W * GRID_H) * 100
 
     sim_names = {
-        'fleet': 'Fleet Sim',
-        'gnf':   'GNF Baseline',
-        'rl':    'Greedy RL (γ=0)',
-        'cara':  'CARA MILP',
+        'fleet':     'Fleet Sim',
+        'gnf':       'GNF Baseline',
+        'gnf-risk':  'GNF-Risk',
+        'cara2022':  'CARA-2022 (paper)',
+        'cara-base': 'CARA-EL-Base',
+        'cara':      'CARA-EL-Dyn',
+        'cara-dyn':  'CARA-EL-Dyn',
+        'achord':    'ACHORD-insp',
+        'achord-risk': 'ACHORD-Risk',
+        'ritags':    'RITAGS-insp',
     }
     hdr = font.render(sim_names.get(kind, kind), True, (40, 40, 160))
     screen.blit(hdr, (BX, y)); y += 28
@@ -210,8 +355,8 @@ def draw_sidebar(screen, font, sim, kind, running, show_flags):
         for role_name, count in sorted(roles.items()):
             screen.blit(font.render(f"  {role_name}: {count}", True, (0,0,0)), (BX, y)); y += 18
 
-    # CARA-specific: MILP timing and relay assignment
-    if kind == 'cara':
+    # CARA-EL-specific: MILP timing and relay assignment
+    if kind.startswith('cara') and kind != 'cara2022':
         y += 8
         last_ms = getattr(sim, 'last_milp_time_ms', 0.0)
         times   = getattr(sim, 'milp_solve_times', [])
@@ -249,8 +394,17 @@ def draw_sidebar(screen, font, sim, kind, running, show_flags):
         pygame.draw.rect(screen, clr, (BX, y, 14, 14))
         screen.blit(font.render(nm, True, (0,0,0)), (BX+20, y)); y += 18
 
-    # GNF/RL: hazard dose warning
-    if kind in ('gnf', 'rl'):
+    # ACHORD-specific: dropped-radio budget readout
+    if kind.startswith('achord'):
+        y += 8
+        dropped = len(getattr(sim, 'radios', []))
+        budget  = getattr(sim, 'radio_budget', 0)
+        screen.blit(font.render("Droppable radios:", True, (110, 70, 40)), (BX, y)); y += 20
+        screen.blit(font.render(f"  dropped: {dropped}", True, (0,0,0)), (BX+20, y)); y += 18
+        screen.blit(font.render(f"  budget left: {budget}", True, (0,0,0)), (BX+20, y)); y += 18
+
+    # GNF-substrate sims: hazard dose warning
+    if kind != 'fleet':
         y += 8
         max_dose = max(
             (getattr(r, 'dose_T', 0) + getattr(r, 'dose_R', 0) for r in sim.robots),
@@ -290,10 +444,16 @@ def gui_loop(kind: str, seed: int, max_steps: int):
         kind = selector_screen(screen, font_big, font_sm)
 
     captions = {
-        'fleet': 'Fleet Sim',
-        'gnf':   'GNF Baseline',
-        'rl':    'Greedy RL (γ=0)',
-        'cara':  'CARA MILP  [MILP allocating every 50 ticks]',
+        'fleet':     'Fleet Sim',
+        'gnf':       'GNF Baseline',
+        'gnf-risk':  'GNF-Risk  [risk-aware pathing]',
+        'cara2022':  'CARA-2022  [published mechanism: PDR-triggered self-relaying]',
+        'cara-base': 'CARA-EL-Base  [MILP allocating]',
+        'cara':      'CARA-EL-Dyn  [MILP + exec layer]',
+        'cara-dyn':  'CARA-EL-Dyn  [MILP + exec layer]',
+        'achord':    'ACHORD-insp  [droppable radios + predictive comms]',
+        'achord-risk': 'ACHORD-Risk  [radios + risk-aware pathing]',
+        'ritags':    'RITAGS-insp  [risk-tolerant trait coalitions]',
     }
     pygame.display.set_caption(f"Robot Simulator — {captions.get(kind,kind)}  (seed={seed})")
 
@@ -390,11 +550,15 @@ def gui_loop(kind: str, seed: int, max_steps: int):
 
         screen.blit(grid_surf, (0, 0))
 
-        # Shadow overlay
+        # Shadow overlay. Fleet uses the disk-union renderer; the
+        # GNF-substrate sims use the _relay_ok renderer (the disk method
+        # they don't implement would otherwise paint everything 'uncovered').
         if show_shadow and shadow_surf is not None:
             screen.blit(shadow_surf, (0, 0))
-            if kind in ('fleet', 'cara', 'gnf', 'rl'):
+            if kind == 'fleet':
                 draw_shadow_coverage(screen, sim)
+            else:
+                draw_substrate_coverage(screen, sim)
 
         # Zone outlines (fleet only — GNF/RL have no zone tasks)
         if show_zones and kind == 'fleet':
@@ -441,7 +605,8 @@ def gui_loop(kind: str, seed: int, max_steps: int):
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description='Robot Fleet Simulator Viewer')
-    ap.add_argument('--sim',   choices=['fleet','gnf','rl','cara'], default=None,
+    ap.add_argument('--sim',   choices=['fleet','gnf','gnf-risk','cara2022','cara-base','cara-dyn','cara','achord','achord-risk','ritags'],
+                    default=None,
                     help='Simulator to run (omit for selector screen)')
     ap.add_argument('--seed',  type=int, default=0,   help='Random seed')
     ap.add_argument('--steps', type=int, default=0,

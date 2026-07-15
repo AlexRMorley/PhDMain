@@ -60,6 +60,84 @@ def _load_main_sim(sim_path: str):
 # ─────────────────────────────────────────────────────────────────────────────
 # GNF Robot — minimal state, greedy nearest-frontier planner
 # ─────────────────────────────────────────────────────────────────────────────
+
+# ── Graded lethal dose — substrate parity with Framework M ────────────────────
+# Mirrors ROBOT_HAZARD_PROFILE exactly: only the excess above HALF the robot's
+# own limit accrues (normalized by the limit); death when either channel
+# exceeds the per-type budget. Without this, baseline robots would be immune
+# to the dose mortality Framework M's robots face — an unfair substrate
+# asymmetry in the baselines' favour.
+_DOSE_BUDGET_CACHE = {}
+# ── Idle (stationary) battery drain — substrate parity with the Fleet ────────
+# The framework charges stationary robots IDLE_DRAIN per tick (electronics
+# for ground/surface platforms; HOVER for rotorcraft). The substrate's drain
+# sites live inside the move path, so without this hook a stationary baseline
+# robot idles for FREE — an energy-physics asymmetry (in the baselines'
+# favor) introduced when the Fleet gained idle drain. Applied identically in
+# every substrate sim: active robots whose position did not change this tick
+# pay IDLE_DRAIN; drained robots die with reason 'battery (idle)'.
+IDLE_DRAIN = {"Legged": 0.05, "Drone": 0.40, "Boat": 0.05, "Rover": 0.02}
+
+def _apply_idle_drain(sim, pos_at_step_start):
+    for r in sim.robots:
+        if not r.active:
+            continue
+        if pos_at_step_start.get(id(r)) == r.pos:
+            rt = next((t for t in ("Legged", "Drone", "Boat", "Rover")
+                       if r.name.startswith(t)), "Legged")
+            r.battery -= IDLE_DRAIN.get(rt, 0.05)
+            if r.battery <= 0:
+                r.battery = 0.0
+                r.active = False
+                if getattr(r, 'death_reason', None) is None:
+                    r.death_reason = 'battery (idle)'
+
+
+def _graded_dose_step(bot, c):
+    bud = _DOSE_BUDGET_CACHE.get(bot.name)
+    if bud is None:
+        prof = getattr(bot.sim.M, 'ROBOT_HAZARD_PROFILE', None) or {}
+        t = ''.join(ch for ch in bot.name if not ch.isdigit())
+        bud = prof.get(t, {}).get('dose_budget', float('inf'))
+        _DOSE_BUDGET_CACHE[bot.name] = bud
+    bot.dose_T += max(0.0, c["temp"] - 0.5 * bot.temp_limit) / max(1e-6, bot.temp_limit)
+    bot.dose_R += max(0.0, c["rad"]  - 0.5 * bot.rad_limit)  / max(1e-6, bot.rad_limit)
+    if bot.dose_T > bud or bot.dose_R > bud:
+        which = "thermal" if bot.dose_T > bud else "radiation"
+        bot.active = False
+        bot.hazard_killed = True
+        bot.death_reason = (which + " dose exhausted "
+                            "(T=%.1f/R=%.1f vs budget %.0f)" % (bot.dose_T, bot.dose_R, bud))
+        return True
+    return False
+
+
+# ── Disk-parity relay coverage (CBAX-style, matches Framework M/N) ────────────
+# A coverage source covers shadow cells within Euclidean
+# RELAY_COVERAGE_RADIUS_CELLS (read from the framework module, default 30) of
+# its position — a BOUNDED disk. This replaces the old unbounded flood-fill,
+# which let one border source cover an arbitrarily large connected shadow
+# region: strictly more coverage per source than the Fleet's bounded-disk
+# relays, i.e. a substrate asymmetry in the baselines' favour.
+_DISK_TPL_CACHE = {}
+def _coverage_disk_tpl(R):
+    tpl = _DISK_TPL_CACHE.get(R)
+    if tpl is None:
+        rr = int(R)
+        ax = np.arange(-rr, rr + 1)
+        tpl = (ax[:, None] ** 2 + ax[None, :] ** 2) <= R * R
+        _DISK_TPL_CACHE[R] = tpl
+    return tpl
+
+def _stamp_coverage_disk(mask, shadow, x, y, R, W, H):
+    rr = int(R)
+    tpl = _coverage_disk_tpl(R)
+    x0, x1 = max(0, x - rr), min(W, x + rr + 1)
+    y0, y1 = max(0, y - rr), min(H, y + rr + 1)
+    tx0 = x0 - (x - rr); ty0 = y0 - (y - rr)
+    win = tpl[tx0:tx0 + (x1 - x0), ty0:ty0 + (y1 - y0)]
+    mask[x0:x1, y0:y1] |= win & shadow[x0:x1, y0:y1]
+
 class GNFRobot:
     """
     Stateless greedy robot.  Each tick:
@@ -122,7 +200,7 @@ class GNFRobot:
 
         self.dose_T = 0.0; self.dose_R = 0.0
 
-        self.terrain_R = max(3, round(24 / M.CELL_SIZE))
+        self.terrain_R = 3   # fixed sensor radius — parity with Framework M/N
         self._reachable_arr  = None
         self._reachable_tick = -999
 
@@ -339,6 +417,14 @@ class GNFRobot:
             self.terrain_belief[next_cell[0], next_cell[1]] = true_t
             self.known_mask[next_cell[0], next_cell[1]] = True
             self.path = []; self.goal = None; return
+        # Symmetric physical gate: LAND robots stop at the water's edge (the
+        # plan crossed cells that were unknown at plan time; bots do not
+        # revalidate paths, so without this a Rover walks across the river).
+        if (true_t == M.T_WATER
+                and not (self.caps_mask & (M.CAP_WATER | M.CAP_AIR))):
+            self.terrain_belief[next_cell[0], next_cell[1]] = true_t
+            self.known_mask[next_cell[0], next_cell[1]] = True
+            self.path = []; self.goal = None; return
 
         prev = self.pos
         occupied.discard(prev)
@@ -355,8 +441,7 @@ class GNFRobot:
 
         # Hazard exposure (tracked for comparison, but doesn't kill in GNF baseline)
         c = self.world.grid[self.pos[0]][self.pos[1]]
-        self.dose_T += max(0.0, c["temp"]) * 0.01
-        self.dose_R += max(0.0, c["rad"])  * 0.01
+        if _graded_dose_step(self, c): return
 
         if c["temp"] > self.temp_limit or c["rad"] > self.rad_limit:
             reasons = []
@@ -504,6 +589,7 @@ class GNFSim:
     # ── main step ─────────────────────────────────────────────────────────────
     def step(self) -> bool:
         self.timestep += 1
+        _pos0 = {id(r): r.pos for r in self.robots if r.active}
         M = self.M
 
         # ── Update relay coverage from robot positions ────────────────────────
@@ -515,29 +601,15 @@ class GNFSim:
         shadow  = self.radio_shadow
         relay_ok = np.zeros((M.GRID_W, M.GRID_H), dtype=bool)
 
+        # Disk-parity coverage: bounded Euclidean disk per border source,
+        # identical semantics to the Fleet's relay disks (see helper above).
+        R_cov = getattr(M, 'RELAY_COVERAGE_RADIUS_CELLS', 30)
         for r in self.robots:
             if not r.active: continue
             rx, ry = r.pos
-            # Robot is AT the shadow border (outside shadow, touching it)
             if not shadow[rx, ry] and border[rx, ry]:
-                # Flood-fill to mark all shadow cells reachable from this border
-                from collections import deque as _deque
-                q = _deque()
-                for dx2, dy2 in ((1,0),(-1,0),(0,1),(0,-1)):
-                    nx2, ny2 = rx+dx2, ry+dy2
-                    if 0<=nx2<M.GRID_W and 0<=ny2<M.GRID_H and shadow[nx2,ny2]:
-                        if not relay_ok[nx2, ny2]:
-                            relay_ok[nx2, ny2] = True
-                            q.append((nx2, ny2))
-                while q:
-                    cx2, cy2 = q.popleft()
-                    for dx2, dy2 in ((1,0),(-1,0),(0,1),(0,-1)):
-                        nx2, ny2 = cx2+dx2, cy2+dy2
-                        if (0<=nx2<M.GRID_W and 0<=ny2<M.GRID_H
-                                and shadow[nx2,ny2] and not relay_ok[nx2,ny2]):
-                            relay_ok[nx2, ny2] = True
-                            q.append((nx2, ny2))
-
+                _stamp_coverage_disk(relay_ok, shadow, rx, ry, R_cov,
+                                     M.GRID_W, M.GRID_H)
         self._relay_ok = relay_ok
         # Update _relay_ok_flood dict form for renderer compatibility
         self._relay_ok_flood = {}
@@ -581,6 +653,7 @@ class GNFSim:
         if len(self.found) >= len(self.survivors):
             return False
 
+        _apply_idle_drain(self, _pos0)
         return any(r.active and r.battery > 0 for r in self.robots)
 
 
@@ -638,6 +711,14 @@ class GNFShadowRobot(GNFRobot):
             self.terrain_belief[next_cell[0], next_cell[1]] = true_t
             self.known_mask[next_cell[0], next_cell[1]] = True
             self.path = []; self.goal = None; return
+        # Symmetric physical gate: LAND robots stop at the water's edge (the
+        # plan crossed cells that were unknown at plan time; bots do not
+        # revalidate paths, so without this a Rover walks across the river).
+        if (true_t == M.T_WATER
+                and not (self.caps_mask & (M.CAP_WATER | M.CAP_AIR))):
+            self.terrain_belief[next_cell[0], next_cell[1]] = true_t
+            self.known_mask[next_cell[0], next_cell[1]] = True
+            self.path = []; self.goal = None; return
 
         # ── Shadow gate: bounce back if next cell is shadow with no relay ──
         nx, ny = next_cell
@@ -666,8 +747,7 @@ class GNFShadowRobot(GNFRobot):
 
         # Hazard exposure
         c = self.world.grid[self.pos[0]][self.pos[1]]
-        self.dose_T += max(0.0, c["temp"]) * 0.01
-        self.dose_R += max(0.0, c["rad"])  * 0.01
+        if _graded_dose_step(self, c): return
 
         if c["temp"] > self.temp_limit or c["rad"] > self.rad_limit:
             reasons = []
@@ -678,6 +758,74 @@ class GNFShadowRobot(GNFRobot):
         if self.battery <= 0:
             self.active = False
             self.death_reason = "battery depleted"
+
+
+
+# ── GNF-Risk: the plain GNF explorer + belief-based risk-aware pathing ────────
+# Same planner treatment as CARA-EL and ACHORD-Risk: max-pooled hazard risk
+# from the robot's OWN temp/rad beliefs, its own graded limits, soft-cost
+# hazard shaping (alpha/beta=1.0, soft_frac=0.85). Belief-only — no oracle.
+# Implemented as a SUBCLASS bot so plain GNF and CARA-2022 (which share
+# GNFRobot) remain hazard-blind as documented.
+class GNFRiskRobot(GNFRobot):
+    __slots__ = ()
+
+    def _recompute_chunked(self):
+        M = self.sim.M
+        nW = M.GRID_W // M.CHUNK_SIZE; nH = M.GRID_H // M.CHUNK_SIZE
+        mT = np.zeros((M.GRID_W, M.GRID_H), dtype=np.float32)
+        mR = np.zeros((M.GRID_W, M.GRID_H), dtype=np.float32)
+        km = self.known_mask
+        mT[km] = self.temp_belief[km]; mR[km] = self.rad_belief[km]
+        np.nan_to_num(mT, copy=False); np.nan_to_num(mR, copy=False)
+        self.chunked[0] = mT.reshape(nW, M.CHUNK_SIZE, nH, M.CHUNK_SIZE).max(axis=(1, 3))
+        self.chunked[1] = mR.reshape(nW, M.CHUNK_SIZE, nH, M.CHUNK_SIZE).max(axis=(1, 3))
+
+    def _plan_to(self, goal) -> bool:
+        M = self.sim.M
+        self._recompute_chunked()
+        _zero_traffic = np.zeros((M.GRID_W, M.GRID_H), dtype=np.uint16)
+        can_enter = bool(self.caps_mask & (M.CAP_STAIRS | M.CAP_AIR))
+        relay_ok = self.sim._relay_ok
+        gx, gy = goal
+        path = M.AStar.search(
+            start=self.pos, goal=goal,
+            caps_mask=self.caps_mask,
+            terrain_u8=self.terrain_belief,
+            temp_f32=self.temp_belief, rad_f32=self.rad_belief,
+            chunked_risk=self.chunked,
+            temp_limit=self.temp_limit, rad_limit=self.rad_limit,
+            radio_shadow=self.sim.radio_shadow,
+            relay_ok_fn=(lambda z: bool(relay_ok[gx, gy])) if can_enter
+                        else (lambda z: False),
+            cell_to_zone_fn=self.sim.cell_to_zone,
+            global_cov=self.sim.global_cov,
+            unk_pen=0.3, info_w=0.1, unk_prior=0.25,
+            # soft_frac=0.45: soft hazard cost begins at the DOSE-ACCRUAL
+            # onset (0.5x limit) rather than near the instant-death limit —
+            # under the graded dose model, the fringe itself is the killer.
+            alpha_mult=1.0, beta_mult=1.0, soft_frac=0.45,
+            traffic_u16=_zero_traffic, traffic_w=0.0,
+            shadow_border=self.sim._shadow_border_mask_cache,
+        )
+        if not path:
+            self.failed_goals[goal] = self.sim.timestep + 60
+            return False
+        self.goal = goal
+        self.path = path
+        return True
+
+
+class GNFRiskSim(GNFSim):
+    """GNF explorer with risk-aware pathing (see GNFRiskRobot)."""
+
+    def _build_robots(self):
+        super()._build_robots()
+        self.robots = [
+            GNFRiskRobot(r.name, r.pos[0], r.pos[1], r.caps, r.caps_mask,
+                         self.world, self, r.temp_limit, r.rad_limit)
+            for r in self.robots
+        ]
 
 
 class GNFShadowSim(GNFSim):
@@ -712,6 +860,7 @@ class GNFShadowSim(GNFSim):
 
     def step(self) -> bool:
         self.timestep += 1
+        _pos0 = {id(r): r.pos for r in self.robots if r.active}
         M = self.M
 
         # Shadow always blocked — no relay flood-fill at all.
@@ -751,4 +900,5 @@ class GNFShadowSim(GNFSim):
         if len(self.found) >= len(self.survivors):
             return False
 
+        _apply_idle_drain(self, _pos0)
         return any(r.active and r.battery > 0 for r in self.robots)

@@ -15,6 +15,53 @@ MAX_BUNDLE         = 8
 # -----------------------------------------------------------------------------
 # CARABot
 # -----------------------------------------------------------------------------
+
+# ── Graded lethal dose — substrate parity with Framework M ────────────────────
+# Mirrors ROBOT_HAZARD_PROFILE exactly: only the excess above HALF the robot's
+# own limit accrues (normalized by the limit); death when either channel
+# exceeds the per-type budget. Without this, baseline robots would be immune
+# to the dose mortality Framework M's robots face — an unfair substrate
+# asymmetry in the baselines' favour.
+_DOSE_BUDGET_CACHE = {}
+def _graded_dose_step(bot, c):
+    bud = _DOSE_BUDGET_CACHE.get(bot.name)
+    if bud is None:
+        prof = getattr(bot.sim.M, 'ROBOT_HAZARD_PROFILE', None) or {}
+        t = ''.join(ch for ch in bot.name if not ch.isdigit())
+        bud = prof.get(t, {}).get('dose_budget', float('inf'))
+        _DOSE_BUDGET_CACHE[bot.name] = bud
+    bot.dose_T += max(0.0, c["temp"] - 0.5 * bot.temp_limit) / max(1e-6, bot.temp_limit)
+    bot.dose_R += max(0.0, c["rad"]  - 0.5 * bot.rad_limit)  / max(1e-6, bot.rad_limit)
+    if bot.dose_T > bud or bot.dose_R > bud:
+        which = "thermal" if bot.dose_T > bud else "radiation"
+        bot.active = False
+        bot.hazard_killed = True
+        bot.death_reason = (which + " dose exhausted "
+                            "(T=%.1f/R=%.1f vs budget %.0f)" % (bot.dose_T, bot.dose_R, bud))
+        return True
+    return False
+
+
+# ── Disk-parity relay coverage (CBAX-style, matches Framework M/N) ────────────
+_DISK_TPL_CACHE = {}
+def _coverage_disk_tpl(R):
+    tpl = _DISK_TPL_CACHE.get(R)
+    if tpl is None:
+        rr = int(R)
+        ax = np.arange(-rr, rr + 1)
+        tpl = (ax[:, None] ** 2 + ax[None, :] ** 2) <= R * R
+        _DISK_TPL_CACHE[R] = tpl
+    return tpl
+
+def _stamp_coverage_disk(mask, shadow, x, y, R, W, H):
+    rr = int(R)
+    tpl = _coverage_disk_tpl(R)
+    x0, x1 = max(0, x - rr), min(W, x + rr + 1)
+    y0, y1 = max(0, y - rr), min(H, y + rr + 1)
+    tx0 = x0 - (x - rr); ty0 = y0 - (y - rr)
+    win = tpl[tx0:tx0 + (x1 - x0), ty0:ty0 + (y1 - y0)]
+    mask[x0:x1, y0:y1] |= win & shadow[x0:x1, y0:y1]
+
 class CARABot:
     __slots__ = (
         'name', 'pos', 'caps_mask', 'caps', 'world', 'sim',
@@ -408,13 +455,17 @@ class CARABot:
         if is_boat and tt not in (M.T_WATER,M.T_BRIDGE):
             self.terrain_belief[nc[0],nc[1]]=tt; self.known_mask[nc[0],nc[1]]=True
             self.path=[]; self.goal=None; return
+        # symmetric physical gate: land robots stop at the water's edge
+        if tt==M.T_WATER and not (self.caps_mask & (M.CAP_WATER|M.CAP_AIR)):
+            self.terrain_belief[nc[0],nc[1]]=tt; self.known_mask[nc[0],nc[1]]=True
+            self.path=[]; self.goal=None; return
         occupied.discard(self.pos); self.pos=self.path.pop(0); occupied.add(self.pos)
         self._scan()
         drain={"Legged":1.0,"Drone":2.0,"Boat":2.0,"Rover":0.4}
         rt=next((t for t in ("Legged","Drone","Boat","Rover") if self.name.startswith(t)),"Legged")
         self.battery-=drain.get(rt,1.0)
         c=self.world.grid[self.pos[0]][self.pos[1]]
-        self.dose_T+=max(0.0,c["temp"])*0.01; self.dose_R+=max(0.0,c["rad"])*0.01
+        if _graded_dose_step(self, c): return
         if c["temp"] > self.temp_limit or c["rad"] > self.rad_limit:
             reasons = []
             if c["temp"] > self.temp_limit: reasons.append(f"temp({c['temp']:.0f}>{self.temp_limit:.0f})")
@@ -751,28 +802,21 @@ def make_cara_sim(gnf_module, M_module, use_exec_layer=True):
 
         def step(self):
             self.timestep+=1
+            _pos0 = {id(r): r.pos for r in self.robots if r.active}
             M=self.M
 
             # -- Rebuild relay coverage ---------------------------------------
             border=self._shadow_border_mask_cache; shadow=self.radio_shadow
             relay_ok=np.zeros((M.GRID_W,M.GRID_H),dtype=bool)
+            # Disk-parity coverage: bounded Euclidean disk per border source,
+            # identical semantics to the Fleet's relay disks.
+            R_cov = getattr(M, 'RELAY_COVERAGE_RADIUS_CELLS', 30)
             for r in self.robots:
                 if not r.active: continue
                 rx,ry=r.pos
                 if not shadow[rx,ry] and border[rx,ry]:
-                    q2=deque()
-                    for dx,dy in ((1,0),(-1,0),(0,1),(0,-1)):
-                        nx2,ny2=rx+dx,ry+dy
-                        if 0<=nx2<M.GRID_W and 0<=ny2<M.GRID_H and shadow[nx2,ny2]:
-                            if not relay_ok[nx2,ny2]:
-                                relay_ok[nx2,ny2]=True; q2.append((nx2,ny2))
-                    while q2:
-                        cx2,cy2=q2.popleft()
-                        for dx,dy in ((1,0),(-1,0),(0,1),(0,-1)):
-                            nx2,ny2=cx2+dx,cy2+dy
-                            if (0<=nx2<M.GRID_W and 0<=ny2<M.GRID_H
-                                    and shadow[nx2,ny2] and not relay_ok[nx2,ny2]):
-                                relay_ok[nx2,ny2]=True; q2.append((nx2,ny2))
+                    _stamp_coverage_disk(relay_ok, shadow, rx, ry, R_cov,
+                                         M.GRID_W, M.GRID_H)
             self._relay_ok=relay_ok
             self._relay_ok_flood={}
             for zx in range(self.zone_nx):
@@ -846,6 +890,7 @@ def make_cara_sim(gnf_module, M_module, use_exec_layer=True):
                     if (rx-sx)**2+(ry-sy)**2>R2*R2: continue
                     if self._has_los(rx,ry,sx,sy,r_inside): self.found.add(s)
             if len(self.found)>=len(self.survivors): return False
+            gnf_module._apply_idle_drain(self, _pos0)
             return any(r.active and r.battery>0 for r in self.robots)
 
     return CARASim

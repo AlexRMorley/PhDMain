@@ -1,11 +1,26 @@
 """
-Single-Step Greedy RL Baseline with Shadow Awareness (γ=0)
-===========================================================
-Reward:
-  W_COV * coverage_gain + W_CRIT * stair_first_entry
-  + W_BORDER * relay_border_bonus - W_DIST * distance
+Greedy-Oracle: Myopic Reward-Maximisation Baseline with Oracle Terrain Access
+=============================================================================
+NOT a learned model. Each robot BFS-searches cells within ACTION_RADIUS and
+moves to the argmax of a HAND-WRITTEN scoring function with four hand-tuned
+constants:
 
-Shadow model is now ACTIVE. Relay coverage built each step from border
+  score = W_COV * coverage_gain + W_CRIT * stair_first_entry
+        + W_BORDER * relay_border_bonus - W_DIST * distance
+
+(Formerly named "GreedyRL": that label was inaccurate — there is no training
+loop, no value estimation, and no policy improvement anywhere in this file.
+A gamma=0 "RL" objective is simply single-step greedy maximisation.)
+
+ORACLE ACCESS (disclosed; see the benchmark's information-access audit):
+  * stair_first_entry reads TRUE world terrain, not belief;
+  * the relay border bonus counts hidden stair cells using the full
+    ground-truth stair map — information no real robot could possess.
+This makes Greedy-Oracle an informed quasi-upper-bound comparator: models
+that match or beat it while restricted to belief-only information are doing
+real coordination work.
+
+Shadow model is ACTIVE. Relay coverage built each step from border
 positions. Rovers earn W_BORDER per unknown stair cell they would enable
 by parking at the shadow border — this replaces explicit role election.
 """
@@ -22,7 +37,28 @@ W_DIST   = 0.05
 ACTION_RADIUS = 8
 
 
-class GreedyRLRobot:
+
+# ── Graded lethal dose — substrate parity with Framework M ────────────────────
+_DOSE_BUDGET_CACHE = {}
+def _graded_dose_step(bot, c):
+    bud = _DOSE_BUDGET_CACHE.get(bot.name)
+    if bud is None:
+        prof = getattr(bot.sim.M, 'ROBOT_HAZARD_PROFILE', None) or {}
+        t = ''.join(ch for ch in bot.name if not ch.isdigit())
+        bud = prof.get(t, {}).get('dose_budget', float('inf'))
+        _DOSE_BUDGET_CACHE[bot.name] = bud
+    bot.dose_T += max(0.0, c["temp"] - 0.5 * bot.temp_limit) / max(1e-6, bot.temp_limit)
+    bot.dose_R += max(0.0, c["rad"]  - 0.5 * bot.rad_limit)  / max(1e-6, bot.rad_limit)
+    if bot.dose_T > bud or bot.dose_R > bud:
+        which = "thermal" if bot.dose_T > bud else "radiation"
+        bot.active = False
+        bot.hazard_killed = True
+        bot.death_reason = (which + " dose exhausted "
+                            "(T=%.1f/R=%.1f vs budget %.0f)" % (bot.dose_T, bot.dose_R, bud))
+        return True
+    return False
+
+class GreedyOracleRobot:
     __slots__ = (
         'name','pos','caps_mask','caps','world','sim',
         'temp_limit','rad_limit',
@@ -217,7 +253,7 @@ class GreedyRLRobot:
         rt=next((t for t in ("Legged","Drone","Boat","Rover") if self.name.startswith(t)),"Legged")
         self.battery-=drain.get(rt,1.0)
         c=self.world.grid[self.pos[0]][self.pos[1]]
-        self.dose_T+=max(0.0,c["temp"])*0.01; self.dose_R+=max(0.0,c["rad"])*0.01
+        if _graded_dose_step(self, c): return
         if c["temp"] > self.temp_limit or c["rad"] > self.rad_limit:
             reasons = []
             if c["temp"] > self.temp_limit: reasons.append(f"temp({c['temp']:.0f}>{self.temp_limit:.0f})")
@@ -227,20 +263,23 @@ class GreedyRLRobot:
         if self.battery<=0: self.active=False; self.death_reason="battery depleted"
 
 
-def make_greedy_rl_sim(gnf_module, M_module):
+def make_greedy_oracle_sim(gnf_module, M_module):
     """
-    Returns GreedyRLSim subclassing GNFSim.
+    Returns GreedyOracleSim subclassing GNFSim.
     Inherits shadow infrastructure and the step() relay-rebuild loop.
     Only the per-robot policy differs.
     """
     GNFSim=gnf_module.GNFSim
 
-    class GreedyRLSim(GNFSim):
+    class GreedyOracleSim(GNFSim):
         def _build_robots(self):
             super()._build_robots()
             self.robots=[
-                GreedyRLRobot(r.name,r.pos[0],r.pos[1],r.caps,r.caps_mask,
+                GreedyOracleRobot(r.name,r.pos[0],r.pos[1],r.caps,r.caps_mask,
                                self.world,self,r.temp_limit,r.rad_limit)
                 for r in self.robots]
 
-    return GreedyRLSim
+    return GreedyOracleSim
+
+# Backward-compatibility alias (pre-rename scripts import this name)
+make_greedy_rl_sim = make_greedy_oracle_sim
