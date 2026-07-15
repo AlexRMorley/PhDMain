@@ -46,3 +46,18 @@ phd-thesis-lyx-template-main/Coding/ROSBAG/
 phd-thesis-lyx-template-main/Coding/benchmark_results*/
 phd-thesis-lyx-template-main/Coding/poa_results/
 *.png
+
+# Scaling benchmark output folders
+phd-thesis-lyx-template-main/Coding/ScalingTests/scaling_*_out*/
+phd-thesis-lyx-template-main/Coding/ScalingTests/**/scaling_*_out*/
+phd-thesis-lyx-template-main/Coding/ScalingTests/**/*.csv
+
+# Scaling benchmark output folders
+phd-thesis-lyx-template-main/Coding/ScalingTests/scaling_*_out*/
+phd-thesis-lyx-template-main/Coding/ScalingTests/**/scaling_*_out*/
+phd-thesis-lyx-template-main/Coding/ScalingTests/**/*.csv
+
+# Scaling benchmark output folders
+phd-thesis-lyx-template-main/Coding/ScalingTests/scaling_*_out*/
+phd-thesis-lyx-template-main/Coding/ScalingTests/**/scaling_*_out*/
+phd-thesis-lyx-template-main/Coding/ScalingTests/**/*.csv
