@@ -35,7 +35,23 @@ GRID_W        = 128
 GRID_H        = 128
 FPS           = 60
 SIDEBAR_WIDTH = 260
-MAX_BATTERY   = 1000
+MAX_BATTERY   = 1200   # FrameworkN: +20% over FrameworkM's 1000 (small-env fleets were battery-starved)
+
+# ── Idle (stationary) battery drain per tick ──────────────────────────────────
+# Robots that do not move still consume power: electronics/sensors for ground
+# and surface platforms (very small), and HOVER for rotorcraft — a "stationary"
+# Drone is holding altitude, which is materially expensive (kept below its
+# cruise drain of 2.0 as a generous loiter assumption, declared). Applied once
+# per tick in FleetSim.step() to active robots whose position did not change
+# this tick (stationed relays, comms-holds, idle loiterers). Robots drained to
+# zero die with reason 'battery (idle)'.
+IDLE_DRAIN = {"Legged": 0.05, "Drone": 0.40, "Boat": 0.05, "Rover": 0.02}
+
+# Residual-unknown sweep (endgame objective) toggle. True = production
+# behavior. Exists so the ablation bench can measure the sweep's
+# contribution as its own cell (A6-NOSWEEP) — flipping it off restores the
+# pre-sweep idle behavior exactly (robots with no hierarchy goal stand down).
+SWEEP_ENABLED = True
 
 # Risk / planner
 CHUNK_SIZE  = 2
@@ -137,7 +153,29 @@ STAIR_CELL_DONE  = 0.95   # 95% stair coverage counts as done — last few LOS-b
 N_HOTSPOTS_TEMP  = 5;   TEMP_AMP_N = 35; TEMP_AMP_P = 0.45; TEMP_AMP_SCALE = 14.0
 N_HOTSPOTS_RAD   = 4;   RAD_AMP_N  = 33; RAD_AMP_P  = 0.40; RAD_AMP_SCALE  = 16.0
 SIGMA_MIN = 3.0;  SIGMA_MAX = 10.0
-TEMP_LIMIT = 120.0;  RAD_LIMIT = 150.0
+TEMP_LIMIT = 120.0;  RAD_LIMIT = 150.0   # legacy shared limits (baselines still read these)
+
+# ── Graded hazard durability per robot type ──────────────────────────────────
+# Two mortality mechanisms per robot:
+#   INSTANT   — entering a cell with field above temp_limit/rad_limit (as before,
+#               now graded per type).
+#   DOSE      — cumulative exposure. Per tick standing in field f, hazard dose
+#               accrues at max(0, f − 0.5·limit)/limit — i.e. only the excess
+#               above half the robot's own tolerance counts, so ambient warmth
+#               is harmless. Death when either channel's dose exceeds
+#               dose_budget. Calibration (continuous exposure at 0.8×limit):
+#               Drone ≈ 40 ticks, Legged ≈ 83, Rover ≈ 250, Boat immune.
+# This turns hot fringes into a rationed consumable: a 15-tick sprint at
+# 0.9×limit costs a Drone half its budget, a Legged a quarter, a Rover ~8% —
+# exactly the exposure-allocation decision heterogeneous coordination exists
+# to make. Dose accrues on move ticks (same semantics as the existing λ-field
+# accumulation below); stationary robots do not accrue — disclosed limitation.
+ROBOT_HAZARD_PROFILE = {
+    "Drone":  dict(temp_limit=100.0,  rad_limit=120.0,  dose_budget=12.0),   # fragile
+    "Legged": dict(temp_limit=130.0,  rad_limit=160.0,  dose_budget=25.0),   # moderate
+    "Rover":  dict(temp_limit=200.0,  rad_limit=260.0,  dose_budget=75.0),   # hardened
+    "Boat":   dict(temp_limit=9999.0, rad_limit=9999.0, dose_budget=float('inf')),  # immune
+}
 
 # Exploration planner shaping
 UNK_PEN_SCOUT  = 0.25;  UNK_PEN_OTHER  = 0.70
@@ -1393,6 +1431,11 @@ class Robot:
 
         # hazard dose
         self.dose_T = 0.0; self.dose_R = 0.0; self.survival_p = 1.0
+        # Graded lethal dose (see ROBOT_HAZARD_PROFILE): normalized-excess
+        # exposure per channel; death when either exceeds dose_budget.
+        self.hdose_T = 0.0; self.hdose_R = 0.0
+        self.dose_budget = ROBOT_HAZARD_PROFILE.get(
+            robot_type(name), {}).get('dose_budget', float('inf'))
         # Unified cumulative hazard (λ-field model)
         self.cumulative_hazard = 0.0   # H_i = Σ_t Λ_i(x_t) × HAZARD_DT
 
@@ -1412,7 +1455,12 @@ class Robot:
         # `cell`, this made `--px` silently change the simulation. FleetSim
         # now performs the first sweep after all robots are constructed and
         # their radii are final. See FleetSim._initial_sensor_sweep().
-        self.terrain_R              = max(3, round(24 / CELL_SIZE))
+        # FIXED sensor radius. Previously max(3, round(24/CELL_SIZE)), which
+        # silently coupled sensing physics to CELL_SIZE — a constant that also
+        # serves as the DISPLAY scale — so the radius varied across
+        # environments (small env R=4, large benches R=5, GUI zoom R=6).
+        # Sensing is now a physical constant of the robots: R = 3 cells.
+        self.terrain_R              = 3
         # Ticks spent in comms blackout (standing in uncovered shadow).
         # The robot HOLDS in place while this is non-zero — see the comms-loss
         # hold in FleetSim.step() / Robot.move_step(). Exposed as a metric of
@@ -1820,6 +1868,17 @@ class Robot:
         # The reservation table in set_goal() still softly discourages co-routing.
 
         # ── execute move ──
+        # Physical terrain guard (defense in depth): belief revalidation in
+        # _path_invalid() catches almost everything at sensor R=3, but a cell
+        # occluded by a wall corner can still be UNKNOWN at distance 1. A land
+        # robot physically cannot enter water; learn the cell and replan.
+        _nx, _ny = self.path[0]
+        _tt = self.world.grid[_nx][_ny]["t"]
+        if (_tt == T_WATER and not (self.caps_mask & (CAP_WATER | CAP_AIR))) \
+                or _tt == T_OBS:
+            self.terrain_belief[_nx, _ny] = _tt
+            self.path = []
+            return False
         prev = self.pos
         self.pos = self.path.pop(0)
         occupied.discard(prev); occupied.add(self.pos)
@@ -1870,6 +1929,12 @@ class Robot:
         self.cumulative_hazard += lam_i * HAZARD_DT
         self.survival_p = math.exp(-self.cumulative_hazard)
 
+        # Graded lethal dose: only the excess above HALF this robot's own
+        # tolerance accrues (ambient warmth harmless); normalized by the limit
+        # so budgets are comparable across channels and types.
+        self.hdose_T += max(0.0, c["temp"] - 0.5 * self.temp_limit) / max(1e-6, self.temp_limit)
+        self.hdose_R += max(0.0, c["rad"]  - 0.5 * self.rad_limit)  / max(1e-6, self.rad_limit)
+
         if c["temp"] > self.temp_limit or c["rad"] > self.rad_limit:
             reasons = []
             if c["temp"] > self.temp_limit: reasons.append(f"high temperature ({c['temp']:.0f}>{self.temp_limit:.0f})")
@@ -1879,6 +1944,14 @@ class Robot:
             self.death_reason = " & ".join(reasons)
             self.bundle = []; self.assigned_zones = []; self.task_zone = None
             print(f"[HAZARD DEATH] t={self.sim.timestep}  {self.name} @ {self.pos}  — {self.death_reason}")
+        elif self.hdose_T > self.dose_budget or self.hdose_R > self.dose_budget:
+            which = ("thermal" if self.hdose_T > self.dose_budget else "radiation")
+            self.active = False
+            self.hazard_killed = True    # permanent, same as instant hazard death
+            self.death_reason = (f"{which} dose exhausted "
+                                 f"(T={self.hdose_T:.1f}/R={self.hdose_R:.1f} vs budget {self.dose_budget:.0f})")
+            self.bundle = []; self.assigned_zones = []; self.task_zone = None
+            print(f"[DOSE DEATH]   t={self.sim.timestep}  {self.name} @ {self.pos}  — {self.death_reason}")
 
         if self.goal_commit > 0: self.goal_commit -= 1
         return True
@@ -2119,11 +2192,16 @@ class FleetSim:
 
     # ── robot factory ─────────────────────────────────────────────────────────
     def _build_robots(self):
+        _hp = ROBOT_HAZARD_PROFILE
         templates = [
-            ("Legged", {Capability.LAND,Capability.STAIRS}, np.array([10.,10.]), (TEMP_LIMIT,RAD_LIMIT)),
-            ("Drone",  {Capability.AIR},                   np.array([10.,10.]), (TEMP_LIMIT,RAD_LIMIT)),
-            ("Boat",   {Capability.WATER},                 np.array([0.,0.]),   (9999.,9999.)),
-            ("Rover",  {Capability.LAND},                  np.array([-2.,-2.]),(9999.,9999.)),
+            ("Legged", {Capability.LAND,Capability.STAIRS}, np.array([10.,10.]),
+             (_hp["Legged"]["temp_limit"], _hp["Legged"]["rad_limit"])),
+            ("Drone",  {Capability.AIR},                   np.array([10.,10.]),
+             (_hp["Drone"]["temp_limit"], _hp["Drone"]["rad_limit"])),
+            ("Boat",   {Capability.WATER},                 np.array([0.,0.]),
+             (_hp["Boat"]["temp_limit"], _hp["Boat"]["rad_limit"])),
+            ("Rover",  {Capability.LAND},                  np.array([-2.,-2.]),
+             (_hp["Rover"]["temp_limit"], _hp["Rover"]["rad_limit"])),
         ]
         tpl = {n:(n,c,w,l) for n,c,w,l in templates}
         desired = {"Legged":3,"Drone":4,"Boat":2,"Rover":3}
@@ -3783,6 +3861,14 @@ class FleetSim:
     _GAMMA = {Role.SCOUT: 1.5, Role.SCAN: 0.5, Role.LOITER: 0.4, Role.RELAY: 0.8}
 
     # Private distance cost weight for relay (Lemma 2.7 — preserves potential).
+    # Travel weight in relay valuation. The pre-escalation ablation (B5,
+    # n=16, R=5/no-dose era) measured removal at ~-13%% completion time —
+    # but that finding DID NOT TRANSFER to the escalated physics (R=3 +
+    # graded dose + water gate): re-tested post-escalation, W=0 degraded
+    # hazard-seed-10 discovery 40->35 @280 while W=3.0 reproduced the
+    # reference exactly. Travel is slower and riskier now; pricing it
+    # matters again. Kept at 3.0; the B5 removal cell in AblationBench
+    # re-asks the question on the locked framework.
     _RELAY_TRAVEL_W = 3.0
 
     def _capability_yield(self, robot, zone) -> float:
@@ -3862,7 +3948,30 @@ class FleetSim:
         cap_yield = self._capability_yield(robot, zone)
         return underservice * cap_yield * uf * 1.5
 
-    def _relay_val(self, cluster):
+    def _relay_demand(self, cluster_type, exclude_robot=None):
+        """Number of active non-relay robots that could actually EXPLOIT relay
+        coverage of a cluster of this type (stair clusters need stair/air
+        locomotion; disc clusters any explorer). exclude_robot lets a robot
+        evaluating RELAY for itself not count itself as its own beneficiary.
+        A relay is a public good — with zero eligible beneficiaries its value
+        is zero. This is the demand side the mechanism-design valuation
+        promised ('divided among relay + explorers') but never implemented:
+        without it, the residual-value floor kept fully-sterile buildings
+        priced at 3.5 forever, so once exploration utility collapsed late in
+        a run every surviving robot's best response was RELAY — the observed
+        'everyone relays the middle with no one to relay for' endgame."""
+        n = 0
+        for r in self.robots:
+            if not r.active or r.role == Role.RELAY:
+                continue
+            if r is exclude_robot:
+                continue
+            if cluster_type == 'stair' and not (r.caps_mask & (CAP_STAIRS | CAP_AIR)):
+                continue
+            n += 1
+        return n
+
+    def _relay_val(self, cluster, exclude_robot=None):
         """
         Value unlocked by placing a relay at the border of `cluster`.
 
@@ -3897,7 +4006,10 @@ class FleetSim:
             self._relay_val_tick  = self.timestep
             rv_cache = self._relay_val_cache
         if cache_key in rv_cache:
-            return rv_cache[cache_key]
+            raw, is_safety, ctype = rv_cache[cache_key]
+            if is_safety:
+                return raw          # life-safety value is never demand-gated
+            return raw if self._relay_demand(ctype, exclude_robot) > 0 else 0.0
 
         cluster_zones = set(cluster)
         cluster_type  = self._shadow_zone_type.get(cluster[0], 'none') if cluster else 'none'
@@ -3926,7 +4038,7 @@ class FleetSim:
         )
         if explorers_inside:
             val = 50.0 * explorers_inside
-            rv_cache[cache_key] = val
+            rv_cache[cache_key] = (val, True, cluster_type)
             return val
 
         if cluster_type == 'stair':
@@ -3952,8 +4064,8 @@ class FleetSim:
                 # handful of unreachable residual cells) — minimal holding
                 # value so relay demotes quickly and moves to the next building
                 val = 0.2
-                rv_cache[cache_key] = val
-                return val
+                rv_cache[cache_key] = (val, False, cluster_type)
+                return val if self._relay_demand(cluster_type, exclude_robot) > 0 else 0.0
 
             stair_uf = unknown_stair / total_stair  # fraction of stair cells still unknown
 
@@ -3987,14 +4099,9 @@ class FleetSim:
 
             val = expected_survivors * SURVIVOR_VALUE_PER_EXPECTED * stair_uf
 
-            # Dead robot bonus
-            dead_inside = sum(
-                1 for r in self.robots
-                if not r.active
-                and self.cell_to_zone(r.pos[0], r.pos[1]) in cluster_zones
-                and self.radio_shadow[r.pos[0], r.pos[1]]
-            )
-            val += dead_inside * 1.5
+            # (Dead-robot bonus removed: no data-recovery mechanism exists for
+            # inactive robots, so corpses cannot benefit from coverage — the
+            # bonus manufactured sterile relay demand in the late game.)
 
             # Hard floor: relay value must beat worst-case travel penalty
             val = max(val, 3.5)
@@ -4007,19 +4114,11 @@ class FleetSim:
                       for z in cluster) / max(1, zone_size)
             val *= 1.5
             val  = min(val, 4.0)
-
-            dead_inside = sum(
-                1 for r in self.robots
-                if not r.active
-                and self.cell_to_zone(r.pos[0], r.pos[1]) in cluster_zones
-                and self.radio_shadow[r.pos[0], r.pos[1]]
-            )
-            val += dead_inside * 1.5
         else:
             val = 0.0
 
-        rv_cache[cache_key] = val
-        return val
+        rv_cache[cache_key] = (val, False, cluster_type)
+        return val if self._relay_demand(cluster_type, exclude_robot) > 0 else 0.0
 
     def _role_utility_pg(self, robot, role, active, zone, cluster_info):
         """
@@ -4151,7 +4250,7 @@ class FleetSim:
                             ]
                             _brc[brc_key] = any(robot._reachable_arr[x, y] for x, y in water_disc_border)
                     if not _brc[brc_key]: continue
-                rv = self._relay_val(cl)
+                rv = self._relay_val(cl, exclude_robot=robot)
                 if rv <= 0: continue
                 # Public-good value-sharing (Model J): the k-th relay committing to
                 # this cluster gets rv/k.  Count other active robots already relaying
@@ -4174,7 +4273,7 @@ class FleetSim:
             best_cl_zones = set()
             for cid2, (cl2, _) in cluster_info.items():
                 if not cl2: continue
-                rv2 = self._relay_val(cl2)
+                rv2 = self._relay_val(cl2, exclude_robot=robot)
                 min_d2 = min(
                     abs(robot.pos[0] - (z[0]*self.zone_w_cells + self.zone_w_cells//2))
                     + abs(robot.pos[1] - (z[1]*self.zone_h_cells + self.zone_h_cells//2))
@@ -4735,7 +4834,7 @@ class FleetSim:
                             for rr in active
                         )
                         if already_held: continue
-                        rv    = self._relay_val(cl)
+                        rv    = self._relay_val(cl, exclude_robot=robot)
                         min_d = min(
                             abs(rx - (z[0]*self.zone_w_cells + self.zone_w_cells//2))
                             + abs(ry - (z[1]*self.zone_h_cells + self.zone_h_cells//2))
@@ -4863,9 +4962,20 @@ class FleetSim:
             return
 
         # ── Hard safety gate: explorer inside → hold unconditionally ─────────
+        # Scoped to this relay's own ELECTION SUB-CLUSTER (the zones it was
+        # actually elected to cover), not the whole physical cluster. The old
+        # physical-cluster scope let ONE stranded robot pin EVERY relay of a
+        # large cluster — including relays whose coverage could never reach
+        # it — while the per-cluster relay cap then blocked the safety sweep
+        # from dispatching the one relay that WOULD cover it: a sterile
+        # all-relay deadlock in the late game (observed in small-fleet runs).
         my_cid = self._shadow_cluster_id.get(r.task_zone, -1)
         if my_cid >= 0:
-            cz_set_safety = {z for z, c in self._shadow_cluster_id.items() if c == my_cid}
+            my_sub = self._shadow_subcluster_id.get(r.task_zone)
+            cz_set_safety = {z for z, c in self._shadow_cluster_id.items()
+                             if c == my_cid
+                             and (my_sub is None
+                                  or self._shadow_subcluster_id.get(z) == my_sub)}
             for rr in self.robots:
                 if (rr.active and rr.role != Role.RELAY
                         and self.radio_shadow[rr.pos[0], rr.pos[1]]
@@ -4897,7 +5007,13 @@ class FleetSim:
             cluster_zones = [z for z, c in self._shadow_cluster_id.items()
                              if c == self._shadow_cluster_id.get(r.task_zone, -1)]
             cluster_uf = float(np.mean([self._zone_uf_cache.get(z,0.0) for z in cluster_zones])) if cluster_zones else 0.0
-            cz_set = set(cluster_zones)
+            # Safety/beneficiary membership is scoped to this relay's own
+            # election sub-cluster (see hard gate above for rationale); the
+            # work-remaining metrics above intentionally stay cluster-wide.
+            _sub_d = self._shadow_subcluster_id.get(r.task_zone)
+            cz_set = {z for z in cluster_zones
+                      if _sub_d is None
+                      or self._shadow_subcluster_id.get(z) == _sub_d}
             # Single pass over robots for all three checks
             exp_inside = exp_approaching = exp_assigned = False
             for rr in self.robots:
@@ -5276,6 +5392,72 @@ class FleetSim:
         k = int(np.argmin(d))
         return (int(xs[k]), int(ys[k]))
 
+    def _sweep_target(self, r):
+        """
+        RESIDUAL-UNKNOWN SWEEP (endgame objective). Diagnosis (seed-10 probe,
+        t=600): the endgame tail is residual-unknown STARVATION — the zone
+        auction stops attracting bids once zones are 'complete enough', and
+        robots idle while 1-2%% of the map (and the last survivors) stays
+        unknown. Reveal radius equals detection radius in this framework, so
+        sweeping unknown cells IS searching for survivors.
+
+        Returns None immediately when SWEEP_ENABLED is False (ablation hook).
+        Returns the nearest reachable unknown cell not in uncovered shadow,
+        deduplicated fleet-wide via a claim table (claims expire) so idle
+        robots fan out across distinct residual slivers instead of converging
+        on one. Belief + coverage only; no world truth.
+        """
+        if not SWEEP_ENABLED:
+            return None
+        reach = r.reachable()
+        if reach is None:
+            return None
+        cov = self._active_relay_coverage_arr()
+        unknown = (self.union_belief == 0)
+        # Reachability treats UNKNOWN terrain as non-traversable, so unknown
+        # cells are never themselves 'reachable' — target the reachable
+        # BOUNDARY cell adjacent to sweepable unknown instead (standing there
+        # scans it: reveal radius == detection radius).
+        sweepable = unknown & (~self.radio_shadow | cov)
+        nbr = (np.roll(sweepable, 1, 0) | np.roll(sweepable, -1, 0) |
+               np.roll(sweepable, 1, 1) | np.roll(sweepable, -1, 1))
+        cand = reach & nbr & ~unknown
+        # Hazard filter (belief-only): late-game residual unknown is enriched
+        # with hazard fringes — the cells nobody survived exploring. Do not
+        # dispatch THIS robot to a boundary cell whose believed fields exceed
+        # its dose-accrual onset (0.5x limit); a hardier robot can claim it.
+        # (Observed without this: repeated Drone deaths at the same fringe.)
+        uT = getattr(self, 'union_T', None)
+        uR = getattr(self, 'union_R', None)
+        if uT is not None:
+            cand &= (uT <= 0.5 * r.temp_limit)
+        if uR is not None:
+            cand &= (uR <= 0.5 * r.rad_limit)
+        if not np.any(cand):
+            return None
+        claims = getattr(self, '_sweep_claims', None)
+        if claims is None:
+            claims = self._sweep_claims = {}
+        # prune expired claims; mask a small block around live ones
+        for c, exp in list(claims.items()):
+            if exp < self.timestep:
+                del claims[c]
+        if claims:
+            cand = cand.copy()
+            for (cx, cy) in claims:
+                x0, x1 = max(0, cx-6), min(GRID_W, cx+7)
+                y0, y1 = max(0, cy-6), min(GRID_H, cy+7)
+                cand[x0:x1, y0:y1] = False
+            if not np.any(cand):
+                return None
+        px, py = r.pos
+        xs, ys = np.nonzero(cand)
+        d = np.abs(xs - px) + np.abs(ys - py)
+        k = int(np.argmin(d))
+        tgt = (int(xs[k]), int(ys[k]))
+        claims[tgt] = self.timestep + 80
+        return tgt
+
     def _choose_goal(self, r) -> tuple | None:
         """
         Pick the best frontier for robot r given its task_zone.
@@ -5582,6 +5764,7 @@ class FleetSim:
     # ── main step ─────────────────────────────────────────────────────────────
     def step(self) -> bool:
         self.timestep += 1
+        _pos_at_step_start = {id(r): r.pos for r in self.robots if r.active}
 
         # ── CBBA reassignment ──
         # Run every 50 ticks normally, every 20 ticks when coverage is high
@@ -6146,6 +6329,19 @@ class FleetSim:
                 z = self.cell_to_zone(r.pos[0], r.pos[1])
                 if z: self._zone_last_visited[z] = self.timestep
 
+        # ── Idle battery drain: stationary active robots consume power ──
+        for r in self.robots:
+            if not r.active:
+                continue
+            if _pos_at_step_start.get(id(r)) == r.pos:
+                r.battery -= IDLE_DRAIN.get(robot_type(r.name), 0.05)
+                if r.battery <= 0:
+                    r.battery = 0.0
+                    r.active = False
+                    if getattr(r, 'death_reason', None) is None:
+                        r.death_reason = 'battery (idle)'
+                    r.bundle = []; r.assigned_zones = []; r.task_zone = None
+
         alive = any(r.active and r.battery>0 for r in self.robots)
         return alive
 
@@ -6554,6 +6750,15 @@ class FleetSim:
                     r.bundle = []; r.assigned_zones = []; r.blacklist = {}
             tgt = self._choose_goal(r)
             if tgt is None:
+                # ── Residual-unknown sweep before idling ──
+                fb = self._sweep_target(r)
+                if fb is not None:
+                    r.goal = fb
+                    if r.set_goal(fb):
+                        r.stuck_steps = 0
+                        r.move_step(occupied)
+                        return
+                    r.goal = None
                 # Robot has nothing to do — increment idle counter.
                 # After IDLE_RESCUE_K ticks with no goal, force a full CBBA
                 # rebid so stale blacklists / exhausted bundles get cleared.

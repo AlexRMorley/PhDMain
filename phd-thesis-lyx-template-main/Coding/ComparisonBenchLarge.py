@@ -1,7 +1,13 @@
 """
 Large-Scale Five-Way Comparison Benchmark
 ==========================================
-Compares: Fleet | GNF | Greedy RL | CARA-Base | CARA-Dynamic
+Compares: Fleet (Framework N, relay radius R=30) | GNF | GNF-Shadow | GNF-Risk |
+          ACHORD-insp | ACHORD-Risk | CARA-2022 | CARA-EL-Base | CARA-EL-Dyn
+(Greedy-Oracle retired: oracle terrain reads + hazard blindness made it a
+pure casualty generator under the graded dose model — zero insight per run.
+GNF-Risk replaces it: the same explorer, belief-only, risk-aware pathing.)
+(The K-12/K-20/K-30 coverage-radius sweep is retired: R=30 was established as
+best and is baked into the flagship 'Fleet' entry.)
 on a 200×200 grid (1 km²) with 50 robots and 45 survivors.
 
 Usage:
@@ -14,7 +20,7 @@ Outputs
   - summary_large.json
 """
 
-import sys, os, random, time, argparse, json
+import sys, os, random, time, argparse, json, csv
 from unittest.mock import MagicMock
 from collections import defaultdict
 
@@ -61,15 +67,21 @@ def _load(path, name):
 # J = bounded-relay baseline (the previous "Fleet"); K = walking-disk / disk-radius.
 # Both share world construction so we keep M as an alias for the constants-patch
 # target below; that section (grid size, cell size, etc.) applies to both.
-M_J = _load(_find('2DFleetFrameworkJ', 'FleetFrameworkJ.py',
-                    'hetero_robot_fleet_sim.py', '2DFleetFrameworkI.py'), 'fleet_j')
-M_K = _load(_find('2DFleetFrameworkM.py'), 'fleet_M')
-M   = M_J    # backward compat: existing scenario-patch code writes to M.*
+# Single framework: Framework N (relay radius R=30 built in). The J-bounded
+# predecessor is retired from the comparison; external baselines carry the
+# cross-model story. Falls back to Framework M if N is absent.
+M_K = _load(_find('2DFleetFrameworkN.py', '2DFleetFrameworkM.py'), 'fleet_N')
+M   = M_K    # baselines and scenario patches all target this module
 M_gnf  = _load(_find('gnf_sim.py', 'GNF_Sim.py', 'GNF_sim.py'),           'gnf')
 # GNFShadowSim is defined in the same file — pull it out after loading
 GNFShadowSim = getattr(M_gnf, 'GNFShadowSim', None)
-M_rl   = _load(_find('greedy_rl_sim.py', 'greedyRL.py', 'GreedyRL.py'),    'rl')
 M_cara = _load(_find('cara_sim.py', 'Cara_sim.py'),                                        'cara')
+M_cara_paper = _load(_find('cara_paper.py', 'Cara_paper.py'),                              'cara_paper')
+M_achord = _load(_find('ACHORD.py', 'Achord_sim.py', 'achord_sim.py'),                       'achord')
+try:
+    M_ritags = _load(_find('Ritags_sim.py', 'ritags_sim.py', 'RITAGS.py'), 'ritags')
+except FileNotFoundError:
+    M_ritags = None
 
 # ── A* timing instrumentation ──────────────────────────────────────────────────
 # In a real deployment the ground station runs the coordination (potential-game
@@ -97,7 +109,7 @@ def _wrap_astar(cls):
 # Wrap every distinct AStar class across the loaded sims so the split is fair
 # for all of them (shared classes are wrapped once via the id() guard).
 _wrapped_astar = set()
-for _mod in (M_J, M_K, M_gnf, M_rl, M_cara):
+for _mod in (M_K, M_gnf, M_cara):
     _ac = getattr(_mod, 'AStar', None)
     if _ac is not None and id(_ac) not in _wrapped_astar and hasattr(_ac, 'search'):
         _wrapped_astar.add(id(_ac))
@@ -114,7 +126,7 @@ LARGE_N_SURVIVORS = 45
 LARGE_ROBOTS = {"Legged": 13, "Drone": 17, "Boat": 8, "Rover": 12}
 
 # ── Patch module constants BEFORE any sim is instantiated ──────────────────────
-for _mod in (M_J, M_K):
+for _mod in (M_K,):
     _mod.GRID_W      = LARGE_GRID_W
     _mod.GRID_H      = LARGE_GRID_H
     _mod.CELL_SIZE   = LARGE_CELL_SIZE
@@ -227,15 +239,24 @@ def _apply_large_scale_patches(M, patch_baselines=False):
 
     # ── Patch FleetSim._build_robots — large robot counts and spawn clusters ───────
     def _patched_build_robots(self):
+        # Graded hazard durability (shared by EVERY model in the comparison —
+        # substrate parity with Framework M's ROBOT_HAZARD_PROFILE). Falls
+        # back to the legacy flat limits for older framework builds.
+        _hp = getattr(M, 'ROBOT_HAZARD_PROFILE', None) or {
+            'Legged': dict(temp_limit=M.TEMP_LIMIT, rad_limit=M.RAD_LIMIT),
+            'Drone':  dict(temp_limit=M.TEMP_LIMIT, rad_limit=M.RAD_LIMIT),
+            'Boat':   dict(temp_limit=9999., rad_limit=9999.),
+            'Rover':  dict(temp_limit=9999., rad_limit=9999.),
+        }
         templates = [
             ("Legged", {M.Capability.LAND, M.Capability.STAIRS},
-             np.array([10., 10.]), (M.TEMP_LIMIT, M.RAD_LIMIT)),
+             np.array([10., 10.]), (_hp['Legged']['temp_limit'], _hp['Legged']['rad_limit'])),
             ("Drone",  {M.Capability.AIR},
-             np.array([10., 10.]), (M.TEMP_LIMIT, M.RAD_LIMIT)),
+             np.array([10., 10.]), (_hp['Drone']['temp_limit'], _hp['Drone']['rad_limit'])),
             ("Boat",   {M.Capability.WATER},
-             np.array([0., 0.]),   (9999., 9999.)),
+             np.array([0., 0.]),   (_hp['Boat']['temp_limit'], _hp['Boat']['rad_limit'])),
             ("Rover",  {M.Capability.LAND},
-             np.array([-2., -2.]), (9999., 9999.)),
+             np.array([-2., -2.]), (_hp['Rover']['temp_limit'], _hp['Rover']['rad_limit'])),
         ]
         tpl = {n: (n, c, w, l) for n, c, w, l in templates}
         spawn = []
@@ -333,18 +354,21 @@ def _apply_large_scale_patches(M, patch_baselines=False):
             GNFShadowSim._build_survivors = _patched_build_survivors
 
 # Apply to both frameworks; baselines patched only on the first pass.
-_apply_large_scale_patches(M_J, patch_baselines=True)
-_apply_large_scale_patches(M_K, patch_baselines=False)
+_apply_large_scale_patches(M_K, patch_baselines=True)
 
 # ── Build sim classes (after patching) ────────────────────────────────────────
-FleetJSim   = M_J.FleetSim
 FleetKSim   = M_K.FleetSim
 GNFSim      = M_gnf.GNFSim
-GreedyRLSim = M_rl.make_greedy_rl_sim(M_gnf, M)
 
 try:
     CARABase    = M_cara.make_cara_sim(M_gnf, M, use_exec_layer=False)
     CARADynamic = M_cara.make_cara_sim(M_gnf, M, use_exec_layer=True)
+    CARAPaper   = M_cara_paper.make_cara_paper_sim(M_gnf, M)
+    ACHORDSim   = M_achord.make_achord_sim(M_gnf, M)
+    ACHORDRisk  = (M_achord.make_achord_risk_sim(M_gnf, M)
+                   if hasattr(M_achord, 'make_achord_risk_sim') else None)
+    RitagsSim   = (M_ritags.make_ritags_sim(M_gnf, M)
+                   if M_ritags is not None else None)
 except TypeError:
     print("  [cara_sim.py: use_exec_layer not supported — update for Base vs Dynamic]")
     CARABase    = M_cara.make_cara_sim(M_gnf, M)
@@ -359,104 +383,33 @@ def _make_k_factory(R):
         return FleetKSim()
     return factory
 
+# Coverage-radius sweep concluded: R=30 won (see the K-12/20/30 study data).
+# The flagship 'Fleet' entry IS Framework N at R=30; the sweep entries are
+# retired so runtime goes to the cross-model comparison instead.
 SIMS = [
-    ('J-bounded',    lambda: FleetJSim(),          '#666666', '-'),
-    ('K-12',         _make_k_factory(12),          '#66a5d9', '--'),
-    ('K-20',         _make_k_factory(20),          '#2166ac', '-'),
-    ('K-30',         _make_k_factory(30),          '#08306b', '-'),
+    ('Fleet',        _make_k_factory(30),          '#08306b', '-'),
     ('GNF',          lambda: GNFSim(M),            '#d6604d', '--'),
     ('GNF-Shadow',   lambda: GNFShadowSim(M),      '#a50026', ':'),
-    ('GreedyRL',     lambda: GreedyRLSim(M),       '#4dac26', '-.'),
-    ('CARA-Base',    lambda: CARABase(M),           '#984ea3', (0,(5,2))),
-    ('CARA-Dynamic', lambda: CARADynamic(M),        '#ff7f00', (0,(3,1,1,1))),
+    ('GNF-Risk',     lambda: M_gnf.GNFRiskSim(M),   '#4dac26', '-.'),
+    ('ACHORD-insp',  lambda: ACHORDSim(M),          '#8c564b', (0,(4,1))),
+    ('ACHORD-Risk',  lambda: ACHORDRisk(M),         '#e377c2', (0,(4,2))),
+    ('RITAGS-insp',  lambda: RitagsSim(M),          '#8c6d31', (0,(3,1,1,1))),
+    ('CARA-2022',    lambda: CARAPaper(M),          '#17becf', (0,(1,1))),
+    ('CARA-EL-Base', lambda: CARABase(M),           '#984ea3', (0,(5,2))),
+    ('CARA-EL-Dyn',  lambda: CARADynamic(M),        '#ff7f00', (0,(3,1,1,1))),
 ]
 if GNFShadowSim is None:
     print("  [WARNING] GNFShadowSim not found in gnf_sim.py — skipping GNF-Shadow")
     SIMS = [s for s in SIMS if s[0] != 'GNF-Shadow']
+if ACHORDRisk is None:
+    print("  [WARNING] make_achord_risk_sim not found in Achord_sim.py — skipping ACHORD-Risk")
+    SIMS = [s for s in SIMS if s[0] != 'ACHORD-Risk']
+if RitagsSim is None:
+    print("  [WARNING] Ritags_sim.py not found — skipping RITAGS-insp")
+    SIMS = [s for s in SIMS if s[0] != 'RITAGS-insp']
 
-# Names of sims that are K variants — used for compute-breakdown instrumentation
-K_SIM_NAMES = {'K-12', 'K-20', 'K-30'}
-
-# ── Information-access audit ("open information" per model) ───────────────────
-# What each policy is allowed to KNOW, verified against the loaded sources.
-# Shared assumptions across ALL models (level playing field): the radio-shadow
-# geometry is known a priori; a robot senses true terrain/hazard within its
-# sensor radius + LOS; the true terrain of the NEXT cell is learned on contact;
-# survivor positions are never known in advance, and a detection registers in
-# the mission-level `found` set instantly — including, in every model, from a
-# robot currently in blackout (a known shared simplification worth stating in
-# the thesis; K could gate this on comms in future work).
-INFO_ACCESS = {
-    'K-*': {
-        'map_sharing':     'Comms-gated union: open-air robots share instantly; '
-                           'relay-bridged shadow robots delayed RELAY_COMMS_DELAY ticks; '
-                           'blackout robots excluded entirely (outbox held locally).',
-        'blackout_info':   'Total: contributes nothing, receives nothing.',
-        'blackout_action': 'Comms-loss hold — freezes in place, no planning; recovery '
-                           'only by physical relay dispatch (safety sweep).',
-        'policy_terrain':  'Belief-only (_belief_stair_arr / _belief_water_arr); '
-                           'no world-truth reads in policy.',
-        'notes':           'Strictest model: blackout gates BOTH information and action.',
-    },
-    'J-bounded': {
-        'map_sharing':     'NOT AUDITED THIS SESSION (J source not reviewed here).',
-        'blackout_info':   'Legacy comms model expected: comms-death + revive.',
-        'blackout_action': 'Legacy autonomous evacuation expected (pre-hold lineage).',
-        'policy_terrain':  'Verify against J source before citing.',
-        'notes':           'Confirm all J rows against 2DFleetFrameworkJ before use.',
-    },
-    'GNF': {
-        'map_sharing':     'Instant global union rebuilt from ALL robots every tick — '
-                           'NOT comms-gated: blackout robots still contribute scans and '
-                           'read the full fleet map.',
-        'blackout_info':   'None enforced — full fleet knowledge at all times.',
-        'blackout_action': 'Movement into uncovered interior blocked by reachability '
-                           'gate; robots otherwise plan/move normally in shadow.',
-        'policy_terrain':  'Union belief only; true terrain on contact (shared).',
-        'notes':           'Shadow restricts motion, never information.',
-    },
-    'GNF-Shadow': {
-        'map_sharing':     'Same as GNF: instant global union, not comms-gated.',
-        'blackout_info':   'None enforced.',
-        'blackout_action': 'Bounce-back gate at uncovered-shadow edge (movement only).',
-        'policy_terrain':  'Union belief only.',
-        'notes':           'Adds motion enforcement over GNF; information still open.',
-    },
-    'GreedyRL': {
-        'map_sharing':     'Inherits GNF step: instant global union, not comms-gated.',
-        'blackout_info':   'None enforced.',
-        'blackout_action': 'Plans normally.',
-        'policy_terrain':  'ORACLE: _reward/_greedy_goal read TRUE terrain of candidate '
-                           'cells (stair bonus for buildings never observed) and the '
-                           'FULL true stair map (_world_stair_arr) to count unknown '
-                           'stair cells for the relay-border bonus.',
-        'notes':           'Only model whose REWARD uses remote world truth — its '
-                           'relay-border behaviour is oracle-informed by construction.',
-    },
-    'CARA-Base': {
-        'map_sharing':     'Instant global union, not comms-gated; MILP allocation '
-                           'runs over the union.',
-        'blackout_info':   'None enforced.',
-        'blackout_action': 'Plans normally (no execution layer).',
-        'policy_terrain':  'Union belief only; true terrain on contact (shared).',
-        'notes':           '',
-    },
-    'CARA-Dynamic': {
-        'map_sharing':     'Same as CARA-Base.',
-        'blackout_info':   'None enforced.',
-        'blackout_action': 'EJECT: autonomous escape via shadow-free A* '
-                           '(_plan_to_ignoring_shadow / _nearest_exit_bfs) — retains '
-                           'exactly the self-evacuation mechanism K removed.',
-        'policy_terrain':  'Union belief only.',
-        'notes':           'Hold/eject execution layer; eject is an info-free but '
-                           'action-privileged escape K forbids itself.',
-    },
-}
-
-def _info_access_for(sim_name):
-    if sim_name in K_SIM_NAMES:
-        return INFO_ACCESS['K-*']
-    return INFO_ACCESS.get(sim_name, {})
+# Sims that get per-phase compute-breakdown instrumentation (the flagship) and
+K_SIM_NAMES = {'Fleet'}
 
 RECORD_EVERY = 25
 BAR_WIDTH    = 32
@@ -556,30 +509,11 @@ class Result:
         # ── K compute breakdown (K variants only, else empty) ─────────────
         # Seconds accumulated per phase across the whole run
         self.compute_breakdown = {}            # {'role', 'alloc', 'cover', 'other'}
-        # ── End-of-run recordings (statistical analysis / CSV export) ─────
-        self.steps_ran        = 0     # ticks actually simulated (≤ steps)
-        self.stranded_end     = 0     # robots ending the run in comms blackout
-        self.blackout_total   = 0     # fleet robot-ticks frozen in blackout (K)
-        self.blackout_max     = 0     # longest single blackout episode (K)
-        self.found_building   = 0     # survivors found on true stair cells
-        self.found_open       = 0     # survivors found in the open
-        self.relay_duty_ticks = 0     # robot-ticks spent in RELAY role
-        self.battery_used     = 0.0   # fleet energy proxy: sum(MAX-battery)
-        self.t_cov90          = -1    # first snapshot tick with coverage ≥ 90%
-        self.t_stair50        = -1    # first snapshot tick with stair cov ≥ 50%
 
-# ── Stall exit ─────────────────────────────────────────────────────────────────
-# A run ends early when it makes NO progress — no new survivor found AND fewer
-# than STALL_MIN_CELLS newly-known cells — for `--stall` consecutive ticks.
-# Coverage growth counts as progress, so a fleet still mapping its way toward
-# survivors is never cut off; a fleet wandering without learning anything is
-# declared STALLED and the benchmark moves on. (K's former stagnation-rescue
-# watchdog has been removed from the framework itself, so no model can
-# self-rescue past this exit any more.)
-STALL_WINDOW_DEFAULT = 300
-STALL_MIN_CELLS      = 25   # known-cell growth below this does not reset the window
+# ── Runner ─────────────────────────────────────────────────────────────────────
+STALL_WINDOW = 600   # was 300 — doubled for 200×200 map (relay cycle ~200 ticks)
 
-def run_sim(sim_name, factory, seed, steps, stall_window=STALL_WINDOW_DEFAULT):
+def run_sim(sim_name, factory, seed, steps):
     random.seed(seed); np.random.seed(seed)
     sim = factory()
     res = Result(sim_name, seed)
@@ -614,12 +548,9 @@ def run_sim(sim_name, factory, seed, steps, stall_window=STALL_WINDOW_DEFAULT):
     _pos_hist = {r.name: _deque(maxlen=5) for r in sim.robots}
     _prev_union_count = int(np.sum(sim.union_belief != M.T_UNKNOWN))
     _prev_pos = {r.name: r.pos for r in sim.robots}
-    _last_progress_step = 0
-    _cells_ref  = _prev_union_count   # known-cell baseline for the stall window
-    _prev_found = 0
+    _last_found_step = 0
     # Which module owns this sim's Role enum? Fall back to M for baselines.
-    _mod_for_role = M_K if sim_name in K_SIM_NAMES else (
-                     M_J if sim_name == 'J-bounded' else M)
+    _mod_for_role = M
     _Role = getattr(_mod_for_role, 'Role', None)
 
     for step in range(1, steps + 1):
@@ -659,11 +590,6 @@ def run_sim(sim_name, factory, seed, steps, stall_window=STALL_WINDOW_DEFAULT):
             if r.active and sim.radio_shadow[r.pos[0], r.pos[1]] and not _relay_covered(sim, r):
                 trapped += 1
 
-        # Relay duty (coordination overhead): robot-ticks spent as RELAY
-        if _Role is not None:
-            res.relay_duty_ticks += sum(
-                1 for r in active_robots if getattr(r, 'role', None) == _Role.RELAY)
-
         # CARA MILP timing
         if hasattr(sim, 'milp_solve_times'):
             cur_n = len(sim.milp_solve_times)
@@ -676,12 +602,9 @@ def run_sim(sim_name, factory, seed, steps, stall_window=STALL_WINDOW_DEFAULT):
         if step % RECORD_EVERY == 0 or step == 1:
             cov = float(np.mean(sim.union_belief != M.T_UNKNOWN)) * 100
             ent, _ = _buildings_entered(sim)
-            _sc = _stair_cov(sim)
-            if cov >= 90.0 and res.t_cov90 < 0:  res.t_cov90 = step
-            if _sc >= 50.0 and res.t_stair50 < 0: res.t_stair50 = step
             res.found_ts.append((step, len(sim.found)))
             res.cov_ts.append((step, cov))
-            res.stair_ts.append((step, _sc))
+            res.stair_ts.append((step, _stair_cov(sim)))
             res.bldg_ts.append((step, ent))
             res.redundancy_ts.append((step, _redundancy(sim) * 100))
             res.zone_redundancy_ts.append((step, _zone_redundancy(sim) * 100))
@@ -709,12 +632,8 @@ def run_sim(sim_name, factory, seed, steps, stall_window=STALL_WINDOW_DEFAULT):
         if n_found >= res.total_survivors and res.t_all_found < 0:
             res.t_all_found = step
 
-        # Progress bookkeeping for the stall exit: a new survivor, or enough
-        # newly-known cells since the last reset, restarts the window.
-        if n_found > _prev_found:
-            _last_progress_step = step; _prev_found = n_found
-        if new_union_count - _cells_ref >= STALL_MIN_CELLS:
-            _last_progress_step = step; _cells_ref = new_union_count
+        if n_found > 0 and (not res.found_ts or n_found > res.found_ts[-1][1]):
+            _last_found_step = step
 
         if n_found >= res.total_survivors and not res.completed:
             res.completed = True; res.completion_step = step
@@ -724,10 +643,8 @@ def run_sim(sim_name, factory, seed, steps, stall_window=STALL_WINDOW_DEFAULT):
         if not active_robots:
             break
 
-        # Exit if stalled — no progress of any kind for `stall_window` steps.
-        # Just say it stalled and move on: partial metrics are recorded,
-        # stalled=1 in runs.csv, steps_ran shows where it ended.
-        if step - _last_progress_step > stall_window:
+        # Exit if stalled — no new survivors for STALL_WINDOW steps
+        if step - _last_found_step > STALL_WINDOW and step > STALL_WINDOW:
             res.stalled = True
             break
 
@@ -773,33 +690,6 @@ def run_sim(sim_name, factory, seed, steps, stall_window=STALL_WINDOW_DEFAULT):
                       and sim.radio_shadow[r.pos[0], r.pos[1]]
                       and not _relay_covered(sim, r))
     res.trapped = trapped
-    res.steps_ran = step
-
-    # ── End-of-run comms-loss recording ────────────────────────────────────
-    # Comms loss is recorded at simulation end, never as a death. K exposes
-    # comms_loss_report(); for other models, fall back to per-cell shadow
-    # status if available so stranded_at_end is comparable.
-    _report = getattr(sim, 'comms_loss_report', None)
-    if callable(_report):
-        rep = _report()
-        res.stranded_end   = len(rep['stranded_at_end'])
-        res.blackout_total = rep['blackout_ticks_total']
-        res.blackout_max   = rep['blackout_ticks_max']
-    else:
-        res.stranded_end = sum(
-            1 for r in sim.robots if r.active
-            and sim.radio_shadow[r.pos[0], r.pos[1]] and not _relay_covered(sim, r))
-
-    # Survivors found split by true location class (METRIC-only world truth —
-    # identical measurement for every model; policies never see this).
-    sm = _stair_mask(sim)
-    res.found_building = sum(1 for (sx, sy) in sim.found if sm[sx, sy])
-    res.found_open     = len(sim.found) - res.found_building
-
-    # Fleet energy proxy: battery consumed across all robots.
-    res.battery_used = float(sum(
-        max(0.0, LARGE_MAX_BATTERY - getattr(r, 'battery', LARGE_MAX_BATTERY))
-        for r in sim.robots))
     n = len(st)
     res.p50 = st[n//2]; res.p90 = st[int(n * 0.9)]; res.avg_ms = sum(st) / n
 
@@ -808,6 +698,12 @@ def run_sim(sim_name, factory, seed, steps, stall_window=STALL_WINDOW_DEFAULT):
         res.milp_avg = sum(mt)/len(mt); res.milp_max = max(mt); res.milp_n = len(mt)
     if hasattr(sim, 'hold_ticks'):  res.hold   = sum(sim.hold_ticks.values())
     if hasattr(sim, 'eject_events'): res.ejects = len(sim.eject_events)
+    if hasattr(sim, 'relays_placed'): res.relays_placed = len(sim.relays_placed)
+    if hasattr(sim, 'radios_dropped'): res.radios_dropped = len(sim.radios_dropped)
+    if hasattr(sim, 'conn_ratio'): res.conn_ratio = float(sim.conn_ratio)
+    if hasattr(sim, 'sprt_stats'):
+        res.sprt_accepted = sim.sprt_stats.get('accepted', 0)
+        res.sprt_redundancy = sim.sprt_stats.get('redundancy_adds', 0)
     return res
 
 # ── Plotting helpers ───────────────────────────────────────────────────────────
@@ -849,41 +745,42 @@ def _save(fig, path, name):
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 def main():
-    global SIMS
     ap = argparse.ArgumentParser()
     ap.add_argument('--steps', type=int, default=3000)
     ap.add_argument('--seeds', type=str, default='10,20,30,40')
     ap.add_argument('--out',   type=str, default=None)
-    ap.add_argument('--stall', type=int, default=STALL_WINDOW_DEFAULT,
-                    help='ticks with no progress (no survivor, <%d new cells) '
-                         'before a run is declared STALLED and ended. '
-                         'Default %d.' % (STALL_MIN_CELLS, STALL_WINDOW_DEFAULT))
-    ap.add_argument('--sims', type=str, default='all',
-                    help="comma list of sim names to run (e.g. 'K-20,GNF,CARA-Base'); "
-                         "default all. Big wall-time saver for targeted questions.")
+    ap.add_argument('--sims',  type=str, default='all',
+                    help="comma list of sim names to run (e.g. 'GNF,CARA-2022'); "
+                         "'all' runs the full suite. Note: the CARA-EL summary "
+                         "block is skipped automatically when those sims are "
+                         "filtered out.")
     args = ap.parse_args()
+    global SIMS
+    if args.sims != 'all':
+        want = {s.strip() for s in args.sims.split(',')}
+        known = {name for name, _, _, _ in SIMS}
+        unknown = want - known
+        if unknown:
+            print('unknown sims:', sorted(unknown), '\nvalid:', sorted(known)); sys.exit(1)
+        SIMS = [s for s in SIMS if s[0] in want]
     seeds = [int(s) for s in args.seeds.split(',')]
     steps = args.steps
-    if args.sims != 'all':
-        wanted = {s.strip() for s in args.sims.split(',')}
-        known = {name for name, _, _, _ in SIMS}
-        bad = wanted - known
-        if bad:
-            print('unknown sims:', sorted(bad), '\nvalid:', sorted(known)); sys.exit(1)
-        SIMS = [s for s in SIMS if s[0] in wanted]
     out_dir = args.out or os.path.join(_HERE, 'benchmark_large_comparison_post')
     os.makedirs(out_dir, exist_ok=True)
 
     N_ROBOTS = sum(LARGE_ROBOTS.values())
     results_by_name = {name: [] for name, _, _, _ in SIMS}
     accs = {name: defaultdict(float) for name, _, _, _ in SIMS}
+    _bench_t0 = time.time()
+    def _fmt_hms(s):
+        s = int(s); return f"{s//3600}:{(s%3600)//60:02d}:{s%60:02d}" 
 
     W = 128
     print(f"\n{'='*W}")
     print(f"  Large-Scale Five-Way Benchmark  —  "
           f"{LARGE_GRID_W}×{LARGE_GRID_H} grid @ {LARGE_CELL_SIZE}m  |  "
           f"{N_ROBOTS} robots  |  ~{LARGE_N_SURVIVORS} survivors")
-    print(f"  Fleet | GNF | GreedyRL | CARA-Base | CARA-Dynamic")
+    print(f"  Fleet(R=30) | GNF | GNF-Shadow | GNF-Risk | ACHORD-insp | ACHORD-Risk | RITAGS-insp | CARA-2022 | CARA-EL-Base | CARA-EL-Dyn")
     print(f"  {steps} steps  |  seeds: {seeds}  |  plots -> {out_dir}")
     print(f"{'='*W}")
 
@@ -896,7 +793,7 @@ def main():
             _progress(overall, total_runs,
                       prefix='Overall  ',
                       suffix=f'seed={seed}  starting {name}...')
-            res = run_sim(name, factory, seed, steps, stall_window=args.stall)
+            res = run_sim(name, factory, seed, steps)
             results_by_name[name].append(res)
             is_cara = res.milp_n > 0
             stall_tag = ' [STALLED]' if res.stalled else ''
@@ -906,9 +803,8 @@ def main():
                     f"  found={res.final_found}/{res.total_survivors}"
                     f"  deaths={res.deaths}(haz={res.hazard_deaths}/bat={res.battery_deaths})"
                     f"  trapped={res.trapped}"
-                    f"  strand@end={res.stranded_end}"
-                    f"  blkout={res.blackout_total}"
                     f"  P50={res.p50:5.1f}ms  P90={res.p90:6.1f}ms  avg={res.avg_ms:5.1f}ms"
+                    f"  wall={_fmt_hms(res.wall_s)}"
                     f"{stall_tag}")
             if is_cara:
                 base += (f"  | milp_avg={res.milp_avg:.0f}ms"
@@ -919,13 +815,12 @@ def main():
             for k in ('final_cov','final_stair','final_found','deaths','hazard_deaths','battery_deaths','comms_deaths','trapped',
                       'p50','p90','avg_ms','milp_avg','milp_max','milp_n','hold','ejects',
                       'ground_avg','ground_p50','ground_p90','astar_max_avg','dist_avg','dist_p90',
-                      'peak_relays',
-                      'stranded_end','blackout_total','blackout_max',
-                      'found_building','found_open','relay_duty_ticks','battery_used','steps_ran'):
+                      'peak_relays','relays_placed','radios_dropped',
+                      'conn_ratio','sprt_accepted','sprt_redundancy'):
                 accs[name][k] += getattr(res, k, 0)
             # Time-to-milestone: -1 sentinel means "never reached"; only average
             # over seeds where it was reached, else record 0.
-            for k in ('t_first_found', 't_half_found', 't_all_found', 't_cov90', 't_stair50'):
+            for k in ('t_first_found', 't_half_found', 't_all_found'):
                 v = getattr(res, k, -1)
                 if v is not None and v >= 0:
                     accs[name].setdefault(f'{k}_sum', 0)
@@ -933,10 +828,16 @@ def main():
                     accs[name][f'{k}_sum'] += v
                     accs[name][f'{k}_n'] += 1
 
+        # ── Elapsed / overnight projection ─────────────────────────────────
+        _elapsed = time.time() - _bench_t0
+        _seeds_done = seeds.index(seed) + 1
+        _per_seed = _elapsed / _seeds_done
+        print(f"  elapsed {_fmt_hms(_elapsed)}  |  {_fmt_hms(_per_seed)}/seed"
+              f"  ->  ~{int(8*3600/_per_seed)} seeds / 8h night,"
+              f" ~{int(12*3600/_per_seed)} / 12h"
+              f"  |  this run ends in ~{_fmt_hms(_per_seed*(len(seeds)-_seeds_done))}")
         print(f"  {'─'*124}")
-        # Reference sim for J-vs-others delta print: J-bounded takes the
-        # place the old 'Fleet' entry had. If missing, skip the delta print.
-        _ref_name = 'J-bounded' if 'J-bounded' in results_by_name else None
+        _ref_name = 'Fleet' if 'Fleet' in results_by_name else None
         if _ref_name is not None and results_by_name[_ref_name]:
             fm = results_by_name[_ref_name][-1]
             for name, _, _, _ in SIMS:
@@ -958,7 +859,7 @@ def main():
     # filter — that also drops milp_n, which the CARA summary print needs.
     _milestone_helpers = {
         f'{k}_{suffix}'
-        for k in ('t_first_found', 't_half_found', 't_all_found', 't_cov90', 't_stair50')
+        for k in ('t_first_found', 't_half_found', 't_all_found')
         for suffix in ('sum', 'n')
     }
     avgs = {name: {k: v/n_seeds for k, v in accs[name].items()
@@ -966,7 +867,7 @@ def main():
              for name in accs}
     # Time-to-milestone: mean of seeds that reached it (0 if none did)
     for name in accs:
-        for k in ('t_first_found', 't_half_found', 't_all_found', 't_cov90', 't_stair50'):
+        for k in ('t_first_found', 't_half_found', 't_all_found'):
             s = accs[name].get(f'{k}_sum', 0); c = accs[name].get(f'{k}_n', 0)
             avgs[name][k] = (s / c) if c > 0 else 0.0
     n_surv = LARGE_N_SURVIVORS
@@ -1029,103 +930,55 @@ def main():
         'n_survivors': LARGE_N_SURVIVORS,
         'steps': steps,
         'seeds': seeds,
-        'stall_window': args.stall,
-        'stall_min_cells': STALL_MIN_CELLS,
     }
     with open(os.path.join(out_dir, 'summary.json'), 'w') as f:
         json.dump(summary, f, indent=2)
 
-    # ── CSV export for offline statistical analysis ────────────────────────────
-    # Three tidy files: one row per RUN (the unit of statistical analysis —
-    # never average before testing), one long-format per-tick time-series, and
-    # the averaged summary table. Plus the information-access audit so the
-    # fairness caveats travel with the data.
-    import csv as _csv
-
-    RUN_FIELDS = [
-        'sim', 'seed', 'steps_ran', 'completed', 'completion_step', 'stalled',
-        'total_survivors', 'final_found', 'found_building', 'found_open',
-        'final_cov', 'final_stair', 'buildings_total',
+    # ── CSV export for later comparison ────────────────────────────────────────
+    # Metric columns, in a stable order, shared by the per-run and summary CSVs.
+    _CSV_METRICS = [
+        'final_cov', 'final_stair', 'final_found', 'total_survivors',
+        'completed', 'completion_step', 'stalled',
         'deaths', 'hazard_deaths', 'battery_deaths', 'comms_deaths',
-        'stranded_end', 'blackout_total', 'blackout_max', 'trapped', 'viol',
-        'relay_duty_ticks', 'peak_relays', 'battery_used',
-        't_first_found', 't_half_found', 't_all_found', 't_cov90', 't_stair50',
-        'avg_ms', 'p50', 'p90',
-        'ground_avg', 'ground_p50', 'ground_p90',
+        'trapped', 'peak_relays', 'relays_placed', 'radios_dropped',
+        't_first_found', 't_half_found', 't_all_found',
+        'p50', 'p90', 'avg_ms', 'ground_avg', 'ground_p90',
         'astar_max_avg', 'dist_avg', 'dist_p90',
         'milp_avg', 'milp_max', 'milp_n', 'hold', 'ejects', 'wall_s',
+        'conn_ratio', 'sprt_accepted', 'sprt_redundancy',
     ]
+
+    # (1) per-run: one row per (sim, seed) — the raw material for stats later.
     with open(os.path.join(out_dir, 'runs.csv'), 'w', newline='') as f:
-        w = _csv.writer(f)
-        w.writerow(RUN_FIELDS)
+        w = csv.writer(f)
+        w.writerow(['sim', 'seed'] + _CSV_METRICS)
         for name, _, _, _ in SIMS:
-            for r in results_by_name[name]:
-                row = []
-                for k in RUN_FIELDS:
-                    if k == 'sim':
-                        row.append(r.name)
-                    elif k == 'completed':
-                        row.append(int(r.completed))
-                    elif k == 'stalled':
-                        row.append(int(r.stalled))
-                    elif k == 'completion_step':
-                        row.append(r.completion_step if r.completion_step is not None else '')
-                    else:
-                        row.append(getattr(r, k, ''))
-                w.writerow(row)
+            for r in sorted(results_by_name[name], key=lambda r: r.seed):
+                w.writerow([name, r.seed] +
+                           [getattr(r, m, '') for m in _CSV_METRICS])
 
-    TS_SERIES = [
-        ('found',               'found_ts'),
-        ('coverage_pct',        'cov_ts'),
-        ('stair_pct',           'stair_ts'),
-        ('buildings_entered',   'bldg_ts'),
-        ('redundancy_pct',      'redundancy_ts'),
-        ('zone_redundancy_pct', 'zone_redundancy_ts'),
-        ('flipflop_pct',        'flipflop_ts'),
-        ('idle_move_pct',       'idle_move_ts'),
-        ('step_ms',             'step_ms_ts'),
-        ('ground_ms',           'ground_ms_ts'),
-        ('astar_max_ms',        'astar_max_ts'),
-        ('dist_ms',             'dist_ms_ts'),
-        ('active_relays',       'relays_ts'),
-        ('milp_ms',             'milp_ms_ts'),
-    ]
-    with open(os.path.join(out_dir, 'timeseries.csv'), 'w', newline='') as f:
-        w = _csv.writer(f)
-        w.writerow(['sim', 'seed', 'step', 'metric', 'value'])
-        for name, _, _, _ in SIMS:
-            for r in results_by_name[name]:
-                for metric, attr in TS_SERIES:
-                    for s, v in getattr(r, attr, []):
-                        w.writerow([r.name, r.seed, s, metric, v])
-
+    # (2) averaged summary: one row per sim (means over seeds).
     with open(os.path.join(out_dir, 'summary.csv'), 'w', newline='') as f:
-        w = _csv.writer(f)
-        keys = sorted({k for name in avgs for k in avgs[name]})
-        w.writerow(['sim'] + keys)
+        w = csv.writer(f)
+        w.writerow(['sim', 'n_seeds'] + _CSV_METRICS)
         for name, _, _, _ in SIMS:
-            w.writerow([name] + [round(float(avgs[name].get(k, 0.0)), 3) for k in keys])
+            d = avgs[name]
+            w.writerow([name, n_seeds] +
+                       [round(float(d.get(m, 0.0)), 3) for m in _CSV_METRICS])
 
-    AUDIT_FIELDS = ['map_sharing', 'blackout_info', 'blackout_action',
-                    'policy_terrain', 'notes']
-    with open(os.path.join(out_dir, 'info_access.csv'), 'w', newline='') as f:
-        w = _csv.writer(f)
-        w.writerow(['sim'] + AUDIT_FIELDS)
+    # (3) survivor-discovery timeseries (long format): sim, seed, step,
+    #     found, found_pct — enough to re-plot discovery curves without a rerun.
+    with open(os.path.join(out_dir, 'found_timeseries.csv'), 'w', newline='') as f:
+        w = csv.writer(f)
+        w.writerow(['sim', 'seed', 'step', 'found', 'found_pct'])
         for name, _, _, _ in SIMS:
-            spec = _info_access_for(name)
-            w.writerow([name] + [spec.get(k, '') for k in AUDIT_FIELDS])
+            for r in sorted(results_by_name[name], key=lambda r: r.seed):
+                tot = r.total_survivors or 1
+                for step, val in r.found_ts:
+                    w.writerow([name, r.seed, step, val,
+                                round(val / tot * 100, 2)])
 
-    print(f"\n  CSV export -> {out_dir}/: runs.csv (one row per run — use this for stats),")
-    print(f"                 timeseries.csv (long format), summary.csv, info_access.csv")
-
-    # Console reminder of the fairness caveats that matter when reading results
-    print("\n  Information-access notes (full text in info_access.csv):")
-    print("    K-*          blackout gates information AND action (strictest model)")
-    print("    GNF/CARA     instant un-gated global map sharing every tick")
-    print("    GreedyRL     reward reads TRUE terrain of unseen cells + full true stair map")
-    print("    CARA-Dynamic retains autonomous shadow-escape (eject) that K forbids itself")
-    print("    J-bounded    audit rows are placeholders — verify against the J source")
-
+    print(f"  CSVs: runs.csv  summary.csv  found_timeseries.csv")
 
     # ── Plots ──────────────────────────────────────────────────────────────────
     print("Generating plots...", end=' ', flush=True)
@@ -1306,18 +1159,25 @@ def main():
         d = avgs[name]
         lines.append(f"{name:<14} {d['final_cov']:5.1f} {d['final_stair']:6.1f}"
                      f" {d['final_found']:6.1f} {d['avg_ms']:6.1f}")
-    if 'CARA-Base' in avgs and 'CARA-Dynamic' in avgs:
-        lines += ['', 'CARA extras:',
-                  f"  Base:    MILP {avgs['CARA-Base']['milp_avg']:.0f}ms avg",
-                  f"  Dynamic: {avgs['CARA-Dynamic']['hold']:.0f} hold-ticks",
-                  f"           {avgs['CARA-Dynamic']['ejects']:.0f} eject events"]
+    if 'CARA-EL-Base' in avgs and 'CARA-EL-Dyn' in avgs:
+        lines += ['', 'CARA-EL extras:',
+                  f"  Base:    MILP {avgs['CARA-EL-Base']['milp_avg']:.0f}ms avg",
+                  f"  Dynamic: {avgs['CARA-EL-Dyn']['hold']:.0f} hold-ticks",
+                  f"           {avgs['CARA-EL-Dyn']['ejects']:.0f} eject events"]
+    if 'CARA-2022' in avgs:
+        lines += ['', 'CARA-2022 (faithful paper mechanism, see Cara_paper.py '
+                      'docstring for declared adaptations):',
+                  f"  relays placed: {avgs['CARA-2022'].get('relays_placed', 0):.1f} avg/run"]
+    if 'ACHORD-insp' in avgs:
+        lines += ['', 'ACHORD-inspired (droppable radios, see Achord_sim.py):',
+                  f"  radios dropped: {avgs['ACHORD-insp'].get('radios_dropped', 0):.1f} avg/run"]
     ax_txt.text(0.03, 0.97, '\n'.join(lines), transform=ax_txt.transAxes,
                 fontsize=8, va='top', fontfamily='monospace',
                 bbox=dict(boxstyle='round', facecolor='lightyellow', alpha=0.9))
 
     fig.suptitle(
         f'Large-Scale Comparison ({LARGE_GRID_W}×{LARGE_GRID_H}, {N_ROBOTS} robots)  —  '
-        f'Fleet vs GNF vs GreedyRL vs CARA-Base vs CARA-Dynamic  —  '
+        f'Fleet vs GNF vs ACHORD vs CARA-2022 vs CARA-EL  —  '
         f'{n_seeds} Seed{"s" if n_seeds>1 else ""} × {steps} Steps',
         fontsize=11, fontweight='bold')
     saved.append(_save(fig, out_dir, '12_dashboard.png'))
@@ -1350,7 +1210,7 @@ def main():
             bot += vals
         ax.set_xticks(x); ax.set_xticklabels(k_names_present)
         ax.set_ylabel('ms per step'); ax.set_title(
-            f'K Compute Breakdown by Coverage Radius R  —  '
+            f'Fleet Compute Breakdown by Phase  —  '
             f'{LARGE_GRID_W}×{LARGE_GRID_H}  ({n_seeds} seed{"s" if n_seeds>1 else ""})',
             fontsize=11)
         ax.legend(fontsize=9, loc='upper left'); ax.grid(alpha=0.3, axis='y')
@@ -1405,11 +1265,13 @@ def main():
     ax.grid(alpha=0.3)
 
     fig.suptitle(
-        f'J vs K  —  Mission Outcomes and Efficiency  ({n_seeds} seed{"s" if n_seeds>1 else ""})',
+        f'Mission Outcomes and Efficiency  ({n_seeds} seed{"s" if n_seeds>1 else ""})',
         fontsize=12, fontweight='bold')
     saved.append(_save(fig, out_dir, '14_jvsk_summary.png'))
 
     print("done")
+    print(f"\nTotal bench time: {_fmt_hms(time.time() - _bench_t0)}"
+          f"  ({len(seeds)} seed{'s' if len(seeds)>1 else ''} x {len(SIMS)} sims)")
     print(f"\nPlots saved to: {out_dir}/")
     for f in saved:
         print(f"  {f}")
