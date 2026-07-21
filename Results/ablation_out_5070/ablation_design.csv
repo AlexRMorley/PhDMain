@@ -1,0 +1,16 @@
+cell,axis,removed,isolates
+A0-FULL,control,nothing,Full Framework M: HRBA (Layers 0-2 + rescues) x heterogeneous potential game.
+A1-NOCLUS,HRBA,Layer 0 spatial clustering (single global auction),"Is sqrt(R)-clustering a scaling device only, or does local competition give better assignments?"
+A2-GREEDY,HRBA,entire auction (bid/consensus) -> nearest-feasible-zone greedy,Value of the CBBA bidding/consensus mechanism vs a cheap greedy heuristic. Also the PG-ONLY interaction cell.
+A3-NODIV,HRBA,capability-diversity enforcement in both consensus layers,"Does forcing heterogeneous types per zone improve coverage, or is it overhead?"
+A4-NOL2,HRBA,Layer 2 inter-cluster conflict resolution,Do boundary-zone double-claims meaningfully hurt outcomes?
+A5-NORESC,HRBA,fallback zone + stair rescue + open-terrain rescue,How much of final coverage/found is delivered by the safety-net passes vs the primary auction?
+B1-NOCONG,PG,congestion pricing (gamma=0 all roles),Is congestion pricing what balances the role distribution?
+B2-NOCAP,PG,capability-yield term (fixed 1.0),Value of heterogeneity-aware self-selection vs treating all types as interchangeable.
+B3-NOMF,PG,mean-field signal (global coupling),Does the coupling that reduces the exact-potential guarantee to an ORDINAL one buy anything in practice?
+B4-NAIVRV,PG,mechanism-design relay valuation -> raw unknown-fraction,Does expected-survivor relay pricing produce earlier/better relay placement? (life-safety override retained)
+A6-NOSWEEP,HRBA,residual-unknown endgame sweep (off),sweep closes the residual-unknown tail the zone auction quantizes away
+B5-NOTRAV,PG,relay travel-cost weighting (RELAY_TRAVEL_W=0),Does penalising distance-to-anchor in relay election reduce time-to-coverage?
+B6-NOSUB,PG,radius-bounded election sub-clustering (whole physical clusters),Is the radius bound what lets large buildings get multiple relays?
+B7-NOGAME,PG,entire potential game -> fixed nearest-to-cluster heuristic,Ceiling case: what does ANY game-theoretic role selection buy? Also the HRBA-ONLY interaction cell.
+X-NEITHER,interaction,HRBA auction AND potential game (greedy zones + fixed roles),"Floor case of the 2x2: are HRBA and PG additive, or only useful together?"
